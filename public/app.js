@@ -43,7 +43,7 @@ $(document).ready(function () {
     }
     // Zrušit filtry: Alt+C
     if (e.altKey && (e.key === 'c' || e.key === 'C')) {
-      $('#clearFilters').click();
+      $('#btnResetAll').click();
     }
     // Přepnout zdroj dat: Alt+S
     if (e.altKey && (e.key === 's' || e.key === 'S')) {
@@ -51,9 +51,9 @@ $(document).ready(function () {
       if (datasourceToggle) datasourceToggle.click();
     }
   });
+
   // --- 1.5 Data Source Logic ---
   const datasourceToggle = document.getElementById('datasourceToggle');
-  const datasourceLabel = document.getElementById('datasourceLabel');
 
   function updateDatasourceUI(isBackup) {
     if (datasourceToggle) datasourceToggle.checked = isBackup;
@@ -86,6 +86,25 @@ $(document).ready(function () {
       }
     });
   }
+
+  // Auto-Refresh Logic
+  const autoRefreshToggle = document.getElementById('autoRefreshToggle');
+  let autoRefreshInterval;
+
+  if (autoRefreshToggle) {
+    autoRefreshToggle.addEventListener('change', () => {
+      if (autoRefreshToggle.checked) {
+        autoRefreshInterval = setInterval(() => {
+          if (typeof table !== 'undefined') {
+            table.ajax.reload(null, false);
+          }
+        }, 30000);
+      } else {
+        clearInterval(autoRefreshInterval);
+      }
+    });
+  }
+
   const helpModal = document.getElementById('helpModal');
   const closeHelp = document.getElementById('closeHelp');
 
@@ -109,42 +128,247 @@ $(document).ready(function () {
     });
   }
 
-  // --- 3. DataTables & Filters Logic ---
+  // --- 2. Saved Filters & Time Ranges Logic ---
+  const savedFiltersSelect = $('#savedFiltersSelect');
+  const STORAGE_KEY_FILTERS = 'historian_saved_filters';
 
-  // Helper pro vytvoření checkbox seznamu
-  function createCheckboxList(containerId, items, labelPrefix) {
-    const container = $(containerId);
-    container.empty();
+  // Predefined Ranges
+  const timeRanges = [
+    { value: 'range_today', label: 'Dnes' },
+    { value: 'range_yesterday', label: 'Včera' },
+    { value: 'range_week', label: 'Posledních 7 dní' },
+    { value: 'range_month', label: 'Tento měsíc' },
+    { value: 'time_5m', label: 'Posledních 5 minut' },
+    { value: 'time_10m', label: 'Posledních 10 minut' },
+    { value: 'time_15m', label: 'Posledních 15 minut' },
+    { value: 'time_30m', label: 'Posledních 30 minut' },
+    { value: 'time_1h', label: 'Poslední hodina' }
+  ];
 
-    // items je pole stringů
-    items.forEach(item => {
-      if (!item) return; // skip empty/null
-      const id = labelPrefix + '_' + item.replace(/\W/g, '_');
-      const label = $('<label>');
+  function loadFiltersDropdown() {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_FILTERS) || '[]');
+    const currentVal = savedFiltersSelect.val();
 
-      // Bezpečné vytvoření elementu s hodnotou
-      const checkbox = $('<input>', {
-        type: 'checkbox',
-        value: item
-      });
+    savedFiltersSelect.empty();
+    savedFiltersSelect.append(new Option('-- Filtry a čas --', ''));
 
-      label.append(checkbox).append(' ' + item);
-      container.append(label);
+    // 1. Time Ranges Group
+    const groupTime = $('<optgroup label="Časová období">');
+    timeRanges.forEach(r => {
+      groupTime.append(new Option(r.label, r.value));
     });
+    savedFiltersSelect.append(groupTime);
+
+    // 2. Saved Filters Group
+    if (saved.length > 0) {
+      const groupSaved = $('<optgroup label="Uložené filtry">');
+      saved.forEach(filter => {
+        groupSaved.append(new Option(filter.name, 'saved_' + filter.name));
+      });
+      savedFiltersSelect.append(groupSaved);
+    }
+
+    if (currentVal) savedFiltersSelect.val(currentVal);
   }
 
-  // Načtení filtrů
-  $.getJSON('/api/filters', function (data) {
-    if (data.regions) createCheckboxList('#regionList', data.regions, 'reg');
-    if (data.localities) createCheckboxList('#localityList', data.localities, 'loc');
-    if (data.types) createCheckboxList('#typeList', data.types, 'typ');
-    if (data.properties) createCheckboxList('#propertyList', data.properties, 'prop');
-  }).fail(function (err) {
-    console.error('Chyba load filters', err);
+  loadFiltersDropdown();
+
+  // Apply Filter Logic
+  savedFiltersSelect.on('change', function () {
+    const val = $(this).val();
+    if (!val) return;
+
+    // A) Time Ranges
+    if (val.startsWith('range_') || val.startsWith('time_')) {
+      const today = new Date();
+      let from, to;
+
+      if (val === 'range_today') {
+        from = new Date(today.setHours(0, 0, 0, 0));
+        to = new Date(today.setHours(23, 59, 59, 999));
+      } else if (val === 'range_yesterday') {
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        from = new Date(yesterday.setHours(0, 0, 0, 0));
+        to = new Date(yesterday.setHours(23, 59, 59, 999));
+      } else if (val === 'range_week') {
+        to = new Date(today.setHours(23, 59, 59, 999));
+        const lastWeek = new Date(today);
+        lastWeek.setDate(lastWeek.getDate() - 7);
+        from = new Date(lastWeek.setHours(0, 0, 0, 0));
+      } else if (val === 'range_month') {
+        const year = today.getFullYear();
+        const month = today.getMonth();
+        from = new Date(year, month, 1);
+        to = new Date(year, month + 1, 0, 23, 59, 59);
+      }
+      // Minutes/Hours - relative to NOW
+      else {
+        to = new Date();
+        from = new Date(to);
+        if (val === 'time_5m') from.setMinutes(from.getMinutes() - 5);
+        if (val === 'time_10m') from.setMinutes(from.getMinutes() - 10);
+        if (val === 'time_15m') from.setMinutes(from.getMinutes() - 15);
+        if (val === 'time_30m') from.setMinutes(from.getMinutes() - 30);
+        if (val === 'time_1h') from.setHours(from.getHours() - 1);
+      }
+
+      // Format Date/Time inputs
+      const pad = n => String(n).padStart(2, '0');
+      const setInputs = (dFrom, dTo) => {
+        $('#dateFrom').val(`${dFrom.getFullYear()}-${pad(dFrom.getMonth() + 1)}-${pad(dFrom.getDate())}`);
+        $('#timeFrom').val(`${pad(dFrom.getHours())}:${pad(dFrom.getMinutes())}`);
+
+        $('#dateTo').val(`${dTo.getFullYear()}-${pad(dTo.getMonth() + 1)}-${pad(dTo.getDate())}`);
+        $('#timeTo').val(`${pad(dTo.getHours())}:${pad(dTo.getMinutes())}`);
+      };
+
+      if (from && to) setInputs(from, to);
+      refreshTable();
+    }
+    // B) Saved Filters
+    else if (val.startsWith('saved_')) {
+      const name = val.replace('saved_', '');
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_FILTERS) || '[]');
+      const textFilter = saved.find(f => f.name === name);
+
+      if (textFilter) {
+        const f = textFilter.filters;
+
+        // Restore Checkboxes
+        $('.multiselect-dropdown input[type="checkbox"]').prop('checked', false);
+        const setCheckboxes = (listId, values) => {
+          if (!values) return;
+          values.forEach(v => {
+            // Escape quotes in value just in case
+            $(`${listId} input[value="${v}"]`).prop('checked', true);
+          });
+        };
+        setCheckboxes('#regionList', f.region);
+        setCheckboxes('#localityList', f.locality);
+        setCheckboxes('#typeList', f.type);
+        setCheckboxes('#propertyList', f.property);
+
+        // Restore Dates
+        $('#dateFrom').val(f.dateFrom || '');
+        $('#timeFrom').val(f.timeFrom || '');
+        $('#dateTo').val(f.dateTo || '');
+        $('#timeTo').val(f.timeTo || '');
+
+        // Restore Search
+        $('#globalSearch').val(f.search || '');
+
+        // Restore Column Filters
+        $('.filter-input').val('');
+        if (f.colFilters) {
+          Object.keys(f.colFilters).forEach(key => {
+            $(`.filter-input`).eq(key).val(f.colFilters[key]);
+          });
+        }
+
+        // Update Button Texts
+        ['#region', '#locality', '#type', '#property'].forEach(id => {
+          // Trigger change event to update button text
+          $(`${id}List`).trigger('change', 'input[type="checkbox"]');
+
+          // Manual update fallback
+          const list = $(`${id}List`);
+          const btn = $(`${id}Btn`);
+          const checked = list.find('input:checked');
+          const defaultText = btn.text().split(':')[0];
+          if (checked.length === 0) btn.text(defaultText + ': Vše');
+          else if (checked.length === 1) btn.text(defaultText + ': ' + checked.val());
+          else btn.text(defaultText + ': (' + checked.length + ')');
+        });
+
+        refreshTable();
+      }
+    }
   });
 
+  // Save Filter
+  $('#btnSaveFilter').on('click', function () {
+    const name = prompt('Zadejte název filtru:');
+    if (!name) return;
+
+    const currentFilters = {
+      region: getSelectedValues('#regionList'),
+      locality: getSelectedValues('#localityList'),
+      type: getSelectedValues('#typeList'),
+      property: getSelectedValues('#propertyList'),
+      dateFrom: $('#dateFrom').val(),
+      timeFrom: $('#timeFrom').val(),
+      dateTo: $('#dateTo').val(),
+      timeTo: $('#timeTo').val(),
+      search: $('#globalSearch').val(),
+      colFilters: {}
+    };
+
+    $('.filter-input').each(function (i) {
+      if ($(this).val()) currentFilters.colFilters[i] = $(this).val();
+    });
+
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_FILTERS) || '[]');
+    const existingIndex = saved.findIndex(f => f.name === name);
+    if (existingIndex >= 0) {
+      saved[existingIndex] = { name, filters: currentFilters };
+    } else {
+      saved.push({ name, filters: currentFilters });
+    }
+
+    localStorage.setItem(STORAGE_KEY_FILTERS, JSON.stringify(saved));
+    loadFiltersDropdown();
+    savedFiltersSelect.val('saved_' + name);
+    alert('Filtr uložen.');
+  });
+
+  // Rename Filter
+  $('#btnRenameFilter').on('click', function () {
+    const val = savedFiltersSelect.val();
+    if (!val || !val.startsWith('saved_')) {
+      alert('Vyberte uložený filtr k přejmenování.');
+      return;
+    }
+    const oldName = val.replace('saved_', '');
+    const newName = prompt('Zadejte nový název:', oldName);
+
+    if (newName && newName !== oldName) {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_FILTERS) || '[]');
+      const index = saved.findIndex(f => f.name === oldName);
+      if (index >= 0) {
+        saved[index].name = newName;
+        localStorage.setItem(STORAGE_KEY_FILTERS, JSON.stringify(saved));
+        loadFiltersDropdown();
+        savedFiltersSelect.val('saved_' + newName);
+      }
+    }
+  });
+
+  // Delete Filter
+  $('#btnDeleteFilter').on('click', function () {
+    const val = savedFiltersSelect.val();
+    if (!val || !val.startsWith('saved_')) {
+      alert('Vyberte uložený filtr ke smazání.');
+      return;
+    }
+    const name = val.replace('saved_', '');
+
+    if (confirm(`Opravdu smazat filtr "${name}"?`)) {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_FILTERS) || '[]');
+      const newSaved = saved.filter(f => f.name !== name);
+      localStorage.setItem(STORAGE_KEY_FILTERS, JSON.stringify(newSaved));
+      loadFiltersDropdown();
+    }
+  });
+
+  // --- 3. DataTables & Filters Logic ---
+
+
+
+  // --- 3. DataTables & Filters Logic ---
+
   // UI Logika pro Multi-select
-  function setupMultiselect(btnId, listId, defaultText) {
+  function setupMultiselect(btnId, listId, defaultText, iconHtml) {
     const btn = $(btnId);
     const list = $(listId);
 
@@ -161,20 +385,20 @@ $(document).ready(function () {
       // Update button text
       const checked = list.find('input:checked');
       if (checked.length === 0) {
-        btn.text(defaultText + ': Vše');
+        btn.html(iconHtml + ' ' + defaultText + ': Vše');
       } else if (checked.length === 1) {
-        btn.text(defaultText + ': ' + checked.val());
+        btn.html(iconHtml + ' ' + defaultText + ': ' + checked.val());
       } else {
-        btn.text(defaultText + ': (' + checked.length + ')');
+        btn.html(iconHtml + ' ' + defaultText + ': (' + checked.length + ')');
       }
       refreshTable();
     });
   }
 
-  setupMultiselect('#regionBtn', '#regionList', 'Region');
-  setupMultiselect('#localityBtn', '#localityList', 'Lokalita');
-  setupMultiselect('#typeBtn', '#typeList', 'Typ');
-  setupMultiselect('#propertyBtn', '#propertyList', 'Vlastnost');
+  setupMultiselect('#regionBtn', '#regionList', 'Region', '<i class="fas fa-globe-europe"></i>');
+  setupMultiselect('#localityBtn', '#localityList', 'Lokalita', '<i class="fas fa-map-marker-alt"></i>');
+  setupMultiselect('#typeBtn', '#typeList', 'Typ', '<i class="fas fa-cube"></i>');
+  setupMultiselect('#propertyBtn', '#propertyList', 'Vlastnost', '<i class="fas fa-tag"></i>');
 
   // Zavírání dropdownů při kliku mimo
   $(document).on('click', function () {
@@ -198,6 +422,7 @@ $(document).ready(function () {
   const table = $('#recordsTable').DataTable({
     processing: true,
     serverSide: true,
+    pageLength: parseInt(localStorage.getItem('historian_page_len') || '10'),
     ajax: {
       url: '/api/devicedata',
       // traditional: true, // REMOVED: Breaks DataTables nested object params
@@ -273,6 +498,17 @@ $(document).ready(function () {
         "sortDescending": ": aktivujte pro řazení sestupně"
       }
     },
+    rowCallback: function (row, data) {
+      // Highlight rows newer than 60 seconds
+      if (data.ModifiedOn) {
+        const recordTime = new Date(data.ModifiedOn).getTime();
+        const now = new Date().getTime();
+        const diff = now - recordTime;
+        if (diff < 60000 && diff >= 0) {
+          $(row).addClass('new-record');
+        }
+      }
+    },
     drawCallback: function () {
       const body = $('#recordsTable tbody');
       body.unmark();
@@ -301,9 +537,29 @@ $(document).ready(function () {
   $('#dateFrom, #timeFrom, #dateTo, #timeTo').on('change', refreshTable);
 
   let searchTimeout;
-  $('#globalSearch').on('keyup', function () {
+
+  // Search Input Logic with X button
+  const searchInput = $('#globalSearch');
+  const clearSearchBtn = $('#clearSearch');
+
+  function toggleClearSearchBtn() {
+    if (searchInput.val().length > 0) {
+      clearSearchBtn.show();
+    } else {
+      clearSearchBtn.hide();
+    }
+  }
+
+  searchInput.on('keyup', function () {
+    toggleClearSearchBtn();
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(refreshTable, 400);
+  });
+
+  clearSearchBtn.on('click', function () {
+    searchInput.val('');
+    toggleClearSearchBtn();
+    refreshTable();
   });
 
   $('.filter-input').on('keyup change', function () {
@@ -311,23 +567,37 @@ $(document).ready(function () {
     searchTimeout = setTimeout(refreshTable, 400);
   });
 
+  const savedPageLen = localStorage.getItem('historian_page_len') || '10';
+  $('#pageLengthSelect').val(savedPageLen);
+
   $('#pageLengthSelect').on('change', function () {
-    table.page.len($(this).val()).draw();
+    const len = $(this).val();
+    localStorage.setItem('historian_page_len', len);
+    table.page.len(len).draw();
   });
 
-  $('#clearFilters').on('click', function () {
+  // Reset All Filters Button
+  $('#btnResetAll').on('click', function () {
     // Reset checkboxů
     $('.multiselect-dropdown input[type="checkbox"]').prop('checked', false);
 
     // Reset textů tlačítek
-    $('#regionBtn').text('Region: Vše');
-    $('#localityBtn').text('Lokalita: Vše');
-    $('#typeBtn').text('Typ: Vše');
-    $('#propertyBtn').text('Vlastnost: Vše');
+    $('#regionBtn').html('<i class="fas fa-globe-europe"></i> Region: Vše');
+    $('#localityBtn').html('<i class="fas fa-map-marker-alt"></i> Lokalita: Vše');
+    $('#typeBtn').html('<i class="fas fa-cube"></i> Typ: Vše');
+    $('#propertyBtn').html('<i class="fas fa-tag"></i> Vlastnost: Vše');
 
+    // Reset Saved Filter Dropdown
+    $('#savedFiltersSelect').val('');
+
+    // Reset Date/Time
     $('#dateFrom, #timeFrom, #dateTo, #timeTo').val('');
-    $('#globalSearch').val('');
+
+    // Reset Search & Column Filters
+    searchInput.val('');
+    toggleClearSearchBtn();
     $('.filter-input').val('');
+
     refreshTable();
   });
 
@@ -374,4 +644,26 @@ $(document).ready(function () {
   }
 
   $('#currentYear').text(new Date().getFullYear());
+  // --- 4. Filter Population Logic ---
+  function createCheckboxList(containerId, items) {
+    const container = $(containerId);
+    container.empty();
+    if (!items) return;
+
+    items.forEach(item => {
+      if (!item) return;
+      const label = $('<label>');
+      const input = $('<input>', { type: 'checkbox', value: item });
+      label.append(input).append(' ' + item);
+      container.append(label);
+    });
+  }
+
+  // Načtení filtrů ze serveru
+  $.getJSON('/api/filters', function (data) {
+    if (data.regions) createCheckboxList('#regionList', data.regions);
+    if (data.localities) createCheckboxList('#localityList', data.localities);
+    if (data.types) createCheckboxList('#typeList', data.types);
+    if (data.properties) createCheckboxList('#propertyList', data.properties);
+  });
 });

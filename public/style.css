@@ -1,6 +1,23 @@
-/* 
-  RESET & BASE
-*/
+:root {
+  --bg-color: #f7f7f7;
+  --card-bg: #fff;
+  --text-color: #333;
+  --border-color: #ccc;
+  --primary-color: #2196F3;
+  --hover-color: #e0e0e0;
+  --danger-color: #dc3545;
+}
+
+body.dark-mode {
+  --bg-color: #1e1e1e;
+  --card-bg: #2d2d2d;
+  --text-color: #e0e0e0;
+  --border-color: #555;
+  --primary-color: #64b5f6;
+  --hover-color: #444;
+  --danger-color: #e57373;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -115,12 +132,19 @@ input:checked+.slider:before {
 
 .search-box input,
 .filter-box input,
-.filter-box select {
+.filter-box select,
+.saved-filters select {
   padding: .4rem .5rem .4rem 2rem;
   font-size: .9rem;
   border: 1px solid #ccc;
   border-radius: 4px;
   background: #fff;
+}
+
+.saved-filters select {
+  padding-left: .5rem;
+  /* No icon padding needed for this simple select */
+  min-width: 150px;
 }
 
 .search-box i,
@@ -206,6 +230,35 @@ body.dark-mode .multiselect-dropdown {
 
 body.dark-mode .multiselect-dropdown label:hover {
   background-color: #444;
+}
+
+.btn-quick {
+  padding: .4rem .6rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  font-size: .85rem;
+  transition: background-color 0.2s;
+}
+
+.btn-quick:hover {
+  background: #f0f0f0;
+}
+
+.btn-quick.active {
+  background: #2196F3;
+  color: white;
+  border-color: #2196F3;
+}
+
+.date-controls {
+  margin-bottom: 0.5rem;
+}
+
+.auto-refresh-switch {
+  display: flex;
+  align-items: center;
 }
 
 /* BUTTONS */
@@ -398,6 +451,21 @@ body.dark-mode .btn-clear {
   color: #fff;
 }
 
+body.dark-mode .btn-quick {
+  background: #333;
+  color: #fff;
+  border-color: #555;
+}
+
+body.dark-mode .btn-quick:hover {
+  background: #444;
+}
+
+body.dark-mode .btn-quick.active {
+  background: #2196F3;
+  border-color: #2196F3;
+}
+
 body.dark-mode footer {
   border-top-color: #444;
   color: #aaa;
@@ -461,3 +529,215 @@ body.dark-mode .dataTables_wrapper .dataTables_paginate .paginate_button {
 body.dark-mode .dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
   color: #666 !important;
 }
+
+/* New Record Highlighting */
+table.dataTable tbody tr.new-record {
+  background-color: #d4edda !important;
+  /* Light green */
+  color: #155724 !important;
+  /* Dark green text */
+  transition: background-color 1s ease;
+}
+
+body.dark-mode table.dataTable tbody tr.new-record {
+  background-color: #1e4620 !important;
+  /* Darker green for dark mode */
+  color: #d4edda !important;
+}
+
+/* --- New Filter Layout --- */
+#controls-container {
+  background-color: var(--card-bg);
+  padding: 15px;
+  border-radius: 8px;
+  margin: 20px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: center;
+}
+
+.title-label {
+  font-weight: 600;
+  color: var(--text-color);
+  margin-right: 5px;
+}
+
+/* Saved Filters & Time */
+.saved-filters-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: var(--bg-color);
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.btn-icon {
+  background: transparent;
+  border: none;
+  color: var(--text-color);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 5px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.btn-icon:hover {
+  background-color: var(--hover-color);
+  color: var(--primary-color);
+}
+
+.btn-icon:active {
+  transform: scale(0.95);
+}
+
+/* Multiselects */
+.multiselect-group {
+  display: flex;
+  gap: 10px;
+}
+
+/* Multiselect override for new layout */
+.multiselect {
+  position: relative;
+}
+
+.dropdown-btn {
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  color: var(--text-color);
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  min-width: 120px;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dropdown-btn:after {
+  content: '\f0d7';
+  font-family: 'Font Awesome 5 Free';
+  font-weight: 900;
+  margin-left: 8px;
+}
+
+/* Date Inputs */
+.date-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: var(--bg-color);
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.date-group input {
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 4px 8px;
+  background: var(--card-bg);
+  color: var(--text-color);
+}
+
+/* Actions Row */
+.actions-row {
+  justify-content: space-between;
+  width: 100%;
+}
+
+.search-box {
+  flex-grow: 1;
+  /* Search takes available space */
+  max-width: 400px;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-box i {
+  position: absolute;
+  left: 10px;
+  color: #888;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 8px 40px 8px 35px;
+  /* space for icon and clear btn */
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  background: var(--bg-color);
+  color: var(--text-color);
+}
+
+.search-box #clearSearch {
+  position: absolute;
+  right: 14px;
+  /* Mirrored to left: 10px + 4px adjustment */
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: #888;
+  cursor: pointer;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  z-index: 20;
+}
+
+.search-box #clearSearch:hover {
+  color: var(--danger-color);
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Increase font size for specific dropdowns */
+#savedFiltersSelect,
+#pageLengthSelect {
+  font-size: 1rem;
+}
+
+/* Right Controls */
+.right-controls {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.auto-refresh {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+/* Icon Spacing */
+button i,
+.dropdown-btn i {
+  margin-right: 6px;
+}
+
+/* Fix for icon-only buttons (Saved Filters & clear search) */
+.saved-filters-group .btn-icon i,
+#clearSearch i {
+  margin-right: 0;
+}
+
+/* Dark Mode Adjustments provided by var(--...) */
