@@ -1,0 +1,19 @@
+{
+  "name": "historian_web",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "exceljs": "^4.4.0",
+    "express": "^5.1.0",
+    "mssql": "^12.0.0",
+    "node-windows": "^1.0.0-beta.8"
+  }
+}

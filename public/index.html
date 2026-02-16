@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="cs">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>RCMS RCOM / Prohlížeč auditních záznamů</title>
+  <link rel="icon" href="favicon.ico" />
+
+  <link rel="stylesheet" href="vendors/datatables/datatables.min.css" />
+  <link rel="stylesheet" href="vendors/fontawesome/css/all.min.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <header>
+    <div class="logo-container">
+      <!-- <img src="logo-light.png" alt="Logo" id="logo" /> -->
+      <h1>RCMS RCOM / AuditLog</h1>
+    </div>
+    <div class="theme-switch">
+      <i class="fas fa-sun" aria-hidden="true"></i>
+      <label class="switch" aria-label="Přepnout téma">
+        <input type="checkbox" id="themeToggle" />
+        <span class="slider"></span>
+      </label>
+      <i class="fas fa-moon" aria-hidden="true"></i>
+    </div>
+  </header>
+
+  <div id="controls">
+    <div class="search-box" role="search">
+      <i class="fas fa-search"></i>
+      <input type="text" id="globalSearch" placeholder="Hledat…" aria-label="Globální hledání" />
+    </div>
+
+    <div class="filter-box">
+      <i class="fas fa-globe-europe"></i>
+      <select id="regionSelect" aria-label="Filtr Region">
+        <option value="">— všechny regiony —</option>
+      </select>
+    </div>
+    <div class="filter-box">
+      <i class="fas fa-map-marker-alt"></i>
+      <select id="localitySelect" aria-label="Filtr Lokalita">
+        <option value="">— všechny lokality —</option>
+      </select>
+    </div>
+    <div class="filter-box">
+      <i class="fas fa-cube"></i>
+      <select id="typeSelect" aria-label="Filtr Typ">
+        <option value="">— všechny typy —</option>
+      </select>
+    </div>
+    <div class="filter-box">
+      <i class="fas fa-tag"></i>
+      <select id="propertySelect" aria-label="Filtr Vlastnost">
+        <option value="">— všechny vlastnosti —</option>
+      </select>
+    </div>
+
+    <div class="filter-box">
+      <i class="fas fa-calendar-alt"></i>
+      <input type="date" id="dateFrom" aria-label="Datum od" />
+    </div>
+    <div class="filter-box">
+      <i class="fas fa-clock"></i>
+      <input type="time" id="timeFrom" aria-label="Čas od" />
+    </div>
+
+    <div class="filter-box">
+      <i class="fas fa-calendar-alt"></i>
+      <input type="date" id="dateTo" aria-label="Datum do" />
+    </div>
+    <div class="filter-box">
+      <i class="fas fa-clock"></i>
+      <input type="time" id="timeTo" aria-label="Čas do" />
+    </div>
+
+    <div class="filter-box">
+      <i class="fas fa-list-ol"></i>
+      <select id="pageLengthSelect" aria-label="Počet řádků">
+        <option value="10" selected>10 řádků</option>
+        <option value="25">25 řádků</option>
+        <option value="50">50 řádků</option>
+        <option value="100">100 řádků</option>
+      </select>
+    </div>
+
+    <button id="clearFilters" class="btn-clear" aria-label="Vymazat filtry">
+      <i class="fas fa-eraser"></i> Vymazat filtry
+    </button>
+    <button id="exportCSV" class="btn-export" aria-label="Export do CSV">
+      <i class="fas fa-file-csv"></i> Export CSV
+    </button>
+    <button id="exportXLSX" class="btn-export btn-excel" aria-label="Export do Excel">
+      <i class="fas fa-file-excel"></i> Export Excel
+    </button>
+  </div>
+
+  <main>
+    <div class="table-wrapper">
+      <table id="recordsTable" class="display nowrap" role="grid" aria-label="Auditní záznamy">
+        <thead>
+          <tr role="row">
+            <th scope="col" aria-sort="descending">Id</th>
+            <th scope="col">Datum</th>
+            <th scope="col">Zařízení</th>
+            <th scope="col">Region</th>
+            <th scope="col">Lokalita</th>
+            <th scope="col">Frekvence</th>
+            <th scope="col">Typ</th>
+            <th scope="col">Vlastnost</th>
+            <th scope="col">Stará hodnota</th>
+            <th scope="col">Nová hodnota</th>
+          </tr>
+          <tr class="filters" role="row">
+            <th><input id="filter-col-0" class="filter-input" placeholder="Filtr Id" /></th>
+            <th><input id="filter-col-1" class="filter-input" placeholder="Filtr Datum" /></th>
+            <th><input id="filter-col-2" class="filter-input" placeholder="Filtr Zařízení" /></th>
+            <th><input id="filter-col-3" class="filter-input" placeholder="Filtr Region" /></th>
+            <th><input id="filter-col-4" class="filter-input" placeholder="Filtr Lokalita" /></th>
+            <th><input id="filter-col-5" class="filter-input" placeholder="Filtr Frekvence" /></th>
+            <th><input id="filter-col-6" class="filter-input" placeholder="Filtr Typ" /></th>
+            <th><input id="filter-col-7" class="filter-input" placeholder="Filtr Vlastnost" /></th>
+            <th><input id="filter-col-8" class="filter-input" placeholder="Filtr Stará hod." /></th>
+            <th><input id="filter-col-9" class="filter-input" placeholder="Filtr Nová hod." /></th>
+          </tr>
+        </thead>
+      </table>
+    </div>
+  </main>
+
+  <footer>
+    &copy; <span id="currentYear"></span> ELVAC SOLUTIONS s.r.o.
+    <div class="keyboard-shortcuts">
+      <strong>Klávesové zkratky:</strong> <kbd>Ctrl + M</kbd> – přepnutí tématu
+      <button id="helpBtn" aria-label="Nápověda">?</button>
+    </div>
+  </footer>
+
+  <!-- help modal -->
+  <div id="helpModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <div class="modal-content">
+      <h2 id="helpTitle">Nápověda a klávesové zkratky</h2>
+      <button id="closeHelp" aria-label="Zavřít nápovědu">&times;</button>
+      <ul>
+        <li><kbd>Ctrl + M</kbd> – přepnutí světlého/tmavého režimu</li>
+        <li><kbd>Tab</kbd> – přechod mezi ovládacími prvky</li>
+        <li><kbd>Enter</kbd> – aktivace tlačítek a rozbalení detailu</li>
+        <li><kbd>Esc</kbd> – zavření nápovědy</li>
+      </ul>
+    </div>
+  </div>
+
+  <script src="vendors/jquery/jquery.min.js"></script>
+  <script src="vendors/datatables/datatables.min.js"></script>
+  <script src="vendors/mark/mark.min.js"></script>
+  <script src="vendors/mark/jquery.mark.min.js"></script>
+  <script src="app.js"></script>
+</body>
+
+</html>
