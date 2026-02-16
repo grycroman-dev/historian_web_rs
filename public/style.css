@@ -22,6 +22,14 @@ header {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 1rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  transition: background-color 0.3s ease;
+}
+
+header.header-backup {
+  background-color: #e0dcf5;
+  /* Light purple for backup mode */
 }
 
 header h1 {
@@ -172,6 +180,8 @@ input:checked+.slider:before {
   display: block;
   padding: 0.2rem 0;
   cursor: pointer;
+  white-space: nowrap;
+  /* Prevent wrapping */
 }
 
 .multiselect-dropdown label:hover {
@@ -356,6 +366,11 @@ kbd {
 body.dark-mode {
   background: #1e1e1e;
   color: #e0e0e0;
+}
+
+body.dark-mode header.header-backup {
+  background-color: #3e2069;
+  /* Dark purple */
 }
 
 body.dark-mode .table-wrapper {

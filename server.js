@@ -47,7 +47,8 @@ function addFilter(requestParams, whereConditions, paramName, dbColumn, values) 
 // Načtení filtrů (Region, Locality, Type, Property)
 app.get('/api/filters', async (req, res) => {
   try {
-    const pool = await getPool();
+    const dataSource = req.query.dataSource || 'main';
+    const pool = await getPool(dataSource);
 
     // Načteme unikátní hodnoty pro filtry
     const regions = await pool.request().query('SELECT Name FROM dbo.DeviceRegion ORDER BY Name');
@@ -71,9 +72,10 @@ app.get('/api/filters', async (req, res) => {
 // Načtení dat (DeviceDataView)
 app.get('/api/devicedata', async (req, res) => {
   try {
-    const pool = await getPool();
+    const dataSource = req.query.dataSource || 'main'; // 'main' or 'backup'
+    const pool = await getPool(dataSource);
 
-    console.log('DATA REQUEST Query:', req.query);
+    console.log('DATA REQUEST Query:', req.query, 'Source:', dataSource);
 
     const draw = parseInt(req.query.draw) || 1;
     const start = parseInt(req.query.start) || 0;
@@ -200,7 +202,8 @@ app.get('/api/devicedata', async (req, res) => {
 // CSV export
 app.get('/api/devicedata/csv', async (req, res) => {
   try {
-    const pool = await getPool();
+    const dataSource = req.query.dataSource || 'main';
+    const pool = await getPool(dataSource);
     const requestParams = pool.request();
 
     const searchValue = req.query.search || '';
@@ -295,7 +298,8 @@ app.get('/api/devicedata/csv', async (req, res) => {
 app.get('/api/devicedata/xlsx', async (req, res) => {
   try {
     const ExcelJS = require('exceljs');
-    const pool = await getPool();
+    const dataSource = req.query.dataSource || 'main'; // Získání parametru zdroje dat
+    const pool = await getPool(dataSource);
     const requestParams = pool.request();
 
     const searchValue = req.query.search || '';

@@ -18,6 +18,18 @@
       <img src="logo-light.png" alt="Logo" id="logo" />
       <h1>RCMS RCOM / AuditLog</h1>
     </div>
+
+    <!-- Data Source Switch -->
+    <div class="datasource-switch"
+      style="display: flex; align-items: center; gap: 8px; margin-right: 20px; font-weight: bold;">
+      <span>Hlavní server</span>
+      <label class="switch" aria-label="Přepnout zdroj dat">
+        <input type="checkbox" id="datasourceToggle">
+        <span class="slider" style="background-color: #2196F3;"></span>
+      </label>
+      <span>Záložní server</span>
+    </div>
+
     <div class="theme-switch">
       <i class="fas fa-sun" aria-hidden="true"></i>
       <label class="switch" aria-label="Přepnout téma">
@@ -130,7 +142,7 @@
   <footer>
     &copy; <span id="currentYear"></span> ELVAC SOLUTIONS s.r.o.
     <div class="keyboard-shortcuts">
-      <strong>Klávesové zkratky:</strong> <kbd>Ctrl + M</kbd> – přepnutí tématu
+      <strong>Klávesové zkratky:</strong> <kbd>Alt + M</kbd> – přepnutí tématu
       <button id="helpBtn" aria-label="Nápověda">?</button>
     </div>
   </footer>
@@ -141,7 +153,8 @@
       <h2 id="helpTitle">Nápověda a klávesové zkratky</h2>
       <button id="closeHelp" aria-label="Zavřít nápovědu">&times;</button>
       <ul>
-        <li><kbd>Ctrl + M</kbd> – přepnutí světlého/tmavého režimu</li>
+        <li><kbd>Alt + M</kbd> – přepnutí světlého/tmavého režimu</li>
+        <li><kbd>Alt + S</kbd> – přepnutí zdroje dat (Hlavní/Záložní)</li>
         <li><kbd>Alt + C</kbd> – zrušení všech filtrů</li>
         <li><kbd>Esc</kbd> – zavření nápovědy</li>
       </ul>

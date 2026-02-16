@@ -36,20 +36,56 @@ $(document).ready(function () {
   }
 
   document.addEventListener('keydown', (e) => {
-    // Téma: Ctrl+M
-    if (e.ctrlKey && e.key === 'm') {
+    // Téma: Alt+M
+    if (e.altKey && (e.key === 'm' || e.key === 'M')) {
       e.preventDefault();
       if (themeToggle) themeToggle.click();
     }
     // Zrušit filtry: Alt+C
     if (e.altKey && (e.key === 'c' || e.key === 'C')) {
-      e.preventDefault();
       $('#clearFilters').click();
     }
+    // Přepnout zdroj dat: Alt+S
+    if (e.altKey && (e.key === 's' || e.key === 'S')) {
+      e.preventDefault();
+      if (datasourceToggle) datasourceToggle.click();
+    }
   });
+  // --- 1.5 Data Source Logic ---
+  const datasourceToggle = document.getElementById('datasourceToggle');
+  const datasourceLabel = document.getElementById('datasourceLabel');
 
-  // --- 2. Help Modal Logic ---
-  const helpBtn = document.getElementById('helpBtn');
+  function updateDatasourceUI(isBackup) {
+    if (datasourceToggle) datasourceToggle.checked = isBackup;
+
+    // Toggle header class for styling
+    const header = document.querySelector('header');
+    if (header) {
+      if (isBackup) {
+        header.classList.add('header-backup');
+      } else {
+        header.classList.remove('header-backup');
+      }
+    }
+  }
+
+  // Load saved state
+  const savedSource = localStorage.getItem('dataSource') || 'main'; // 'main' or 'backup'
+  updateDatasourceUI(savedSource === 'backup');
+
+  if (datasourceToggle) {
+    datasourceToggle.addEventListener('change', () => {
+      const isBackup = datasourceToggle.checked;
+      const newSource = isBackup ? 'backup' : 'main';
+      localStorage.setItem('dataSource', newSource);
+      updateDatasourceUI(isBackup);
+
+      // Reload table
+      if (typeof table !== 'undefined') {
+        table.ajax.reload();
+      }
+    });
+  }
   const helpModal = document.getElementById('helpModal');
   const closeHelp = document.getElementById('closeHelp');
 
@@ -166,6 +202,9 @@ $(document).ready(function () {
       url: '/api/devicedata',
       // traditional: true, // REMOVED: Breaks DataTables nested object params
       data: function (d) {
+        // DataSource
+        d.dataSource = localStorage.getItem('dataSource') || 'main';
+
         // Multi-select filtry (posíláme pole)
         d.region = getSelectedValues('#regionList');
         d.locality = getSelectedValues('#localityList');
@@ -304,6 +343,7 @@ $(document).ready(function () {
 
   function buildParams(dt) {
     const params = new URLSearchParams();
+    params.append('dataSource', localStorage.getItem('dataSource') || 'main');
 
     // Pro array parametry musíme přidat každý zvlášť: region=A&region=B
     const regions = getSelectedValues('#regionList');
