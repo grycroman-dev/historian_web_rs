@@ -5,13 +5,11 @@ $(document).ready(function () {
   const themeToggle = document.getElementById('themeToggle');
   const body = document.body;
 
-  // Funkce pro nastavení loga (pokud by bylo potřeba)
   function updateLogo(isDark) {
-    // const logo = document.getElementById('logo');
-    // if(logo) logo.src = isDark ? 'logo-dark.png' : 'logo-light.png';
+    const logo = document.getElementById('logo');
+    if (logo) logo.src = isDark ? 'logo-dark.png' : 'logo-light.png';
   }
 
-  // Načíst uložené téma při startu
   const savedTheme = localStorage.getItem('theme');
   if (savedTheme === 'dark') {
     body.classList.add('dark-mode');
@@ -23,7 +21,6 @@ $(document).ready(function () {
     updateLogo(false);
   }
 
-  // Event listener pro checkbox
   if (themeToggle) {
     themeToggle.addEventListener('change', () => {
       if (themeToggle.checked) {
@@ -38,11 +35,16 @@ $(document).ready(function () {
     });
   }
 
-  // Klávesová zkratka Ctrl+M
   document.addEventListener('keydown', (e) => {
+    // Téma: Ctrl+M
     if (e.ctrlKey && e.key === 'm') {
       e.preventDefault();
       if (themeToggle) themeToggle.click();
+    }
+    // Zrušit filtry: Alt+C
+    if (e.altKey && (e.key === 'c' || e.key === 'C')) {
+      e.preventDefault();
+      $('#clearFilters').click();
     }
   });
 
@@ -73,27 +75,88 @@ $(document).ready(function () {
 
   // --- 3. DataTables & Filters Logic ---
 
-  // Načtení filtrů (Region, Locality, Type, Property)
+  // Helper pro vytvoření checkbox seznamu
+  function createCheckboxList(containerId, items, labelPrefix) {
+    const container = $(containerId);
+    container.empty();
+
+    // items je pole stringů
+    items.forEach(item => {
+      if (!item) return; // skip empty/null
+      const id = labelPrefix + '_' + item.replace(/\W/g, '_');
+      const label = $('<label>');
+
+      // Bezpečné vytvoření elementu s hodnotou
+      const checkbox = $('<input>', {
+        type: 'checkbox',
+        value: item
+      });
+
+      label.append(checkbox).append(' ' + item);
+      container.append(label);
+    });
+  }
+
+  // Načtení filtrů
   $.getJSON('/api/filters', function (data) {
-    if (data.regions) {
-      const sel = $('#regionSelect');
-      data.regions.forEach(r => sel.append(new Option(r, r)));
-    }
-    if (data.localities) {
-      const sel = $('#localitySelect');
-      data.localities.forEach(l => sel.append(new Option(l, l)));
-    }
-    if (data.types) {
-      const sel = $('#typeSelect');
-      data.types.forEach(t => sel.append(new Option(t, t)));
-    }
-    if (data.properties) {
-      const sel = $('#propertySelect');
-      data.properties.forEach(p => sel.append(new Option(p, p)));
-    }
+    if (data.regions) createCheckboxList('#regionList', data.regions, 'reg');
+    if (data.localities) createCheckboxList('#localityList', data.localities, 'loc');
+    if (data.types) createCheckboxList('#typeList', data.types, 'typ');
+    if (data.properties) createCheckboxList('#propertyList', data.properties, 'prop');
   }).fail(function (err) {
     console.error('Chyba load filters', err);
   });
+
+  // UI Logika pro Multi-select
+  function setupMultiselect(btnId, listId, defaultText) {
+    const btn = $(btnId);
+    const list = $(listId);
+
+    // Toggle list
+    btn.on('click', function (e) {
+      e.stopPropagation();
+      // Zavřít ostatní
+      $('.multiselect-dropdown').not(list).removeClass('show');
+      list.toggleClass('show');
+    });
+
+    // Změna v checkboxech
+    list.on('change', 'input[type="checkbox"]', function () {
+      // Update button text
+      const checked = list.find('input:checked');
+      if (checked.length === 0) {
+        btn.text(defaultText + ': Vše');
+      } else if (checked.length === 1) {
+        btn.text(defaultText + ': ' + checked.val());
+      } else {
+        btn.text(defaultText + ': (' + checked.length + ')');
+      }
+      refreshTable();
+    });
+  }
+
+  setupMultiselect('#regionBtn', '#regionList', 'Region');
+  setupMultiselect('#localityBtn', '#localityList', 'Lokalita');
+  setupMultiselect('#typeBtn', '#typeList', 'Typ');
+  setupMultiselect('#propertyBtn', '#propertyList', 'Vlastnost');
+
+  // Zavírání dropdownů při kliku mimo
+  $(document).on('click', function () {
+    $('.multiselect-dropdown').removeClass('show');
+  });
+
+  $('.multiselect-dropdown').on('click', function (e) {
+    e.stopPropagation(); // Aby se nezavřelo při kliku dovnitř
+  });
+
+  // Helper pro získání vybraných hodnot
+  function getSelectedValues(listId) {
+    const selected = [];
+    $(listId + ' input:checked').each(function () {
+      selected.push($(this).val());
+    });
+    return selected;
+  }
 
   // Inicializace DataTables
   const table = $('#recordsTable').DataTable({
@@ -101,12 +164,13 @@ $(document).ready(function () {
     serverSide: true,
     ajax: {
       url: '/api/devicedata',
+      // traditional: true, // REMOVED: Breaks DataTables nested object params
       data: function (d) {
-        // Globální dropdown filtry
-        d.region = $('#regionSelect').val();
-        d.locality = $('#localitySelect').val();
-        d.type = $('#typeSelect').val();
-        d.property = $('#propertySelect').val();
+        // Multi-select filtry (posíláme pole)
+        d.region = getSelectedValues('#regionList');
+        d.locality = getSelectedValues('#localityList');
+        d.type = getSelectedValues('#typeList');
+        d.property = getSelectedValues('#propertyList');
 
         // Datum a čas
         d.dateFrom = $('#dateFrom').val();
@@ -130,7 +194,9 @@ $(document).ready(function () {
         name: 'ModifiedOn',
         render: function (data) {
           if (!data) return '';
-          return new Date(data).toLocaleString();
+          // Zobrazit v UTC
+          const d = new Date(data);
+          return d.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
         }
       },
       { data: 'Name', name: 'Name' },
@@ -142,29 +208,59 @@ $(document).ready(function () {
       { data: 'OldValue', name: 'OldValue' },
       { data: 'NewValue', name: 'NewValue' }
     ],
-    order: [[0, 'desc']], // default Id desc
-    dom: 'rt<"bottom"ip><"clear">', // Vlastní layout
+    order: [[0, 'desc']],
+    dom: 'rt<"bottom"ip><"clear">',
     language: {
-      url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/cs.json'
+      "decimal": "",
+      "emptyTable": "Žádná data k dispozici",
+      "info": "Zobrazeno _START_ až _END_ z _TOTAL_ záznamů",
+      "infoEmpty": "Zobrazeno 0 až 0 z 0 záznamů",
+      "infoFiltered": "(filtrováno z celkem _MAX_ záznamů)",
+      "infoPostFix": "",
+      "thousands": " ",
+      "lengthMenu": "Zobrazit _MENU_ záznamů",
+      "loadingRecords": "Načítám...",
+      "processing": "Zpracovávám...",
+      "search": "Hledat:",
+      "zeroRecords": "Žádné záznamy nenalezeny",
+      "paginate": {
+        "first": "První",
+        "last": "Poslední",
+        "next": "Další",
+        "previous": "Předchozí"
+      },
+      "aria": {
+        "sortAscending": ": aktivujte pro řazení vzestupně",
+        "sortDescending": ": aktivujte pro řazení sestupně"
+      }
     },
     drawCallback: function () {
-      // Mark.js - zvýraznění
+      const body = $('#recordsTable tbody');
+      body.unmark();
+
       const term = $('#globalSearch').val();
-      if (term) {
-        $('#recordsTable tbody').unmark().mark(term);
-      }
+      if (term) body.mark(term);
+
+      $('.filter-input').each(function () {
+        const val = $(this).val();
+        if (val) body.mark(val);
+      });
     }
   });
 
-  // Obsluha filtrů - refresh tabulky
+  // Zamezení řazení při kliknutí do filtru
+  $('thead input.filter-input').on('click', function (e) {
+    e.stopPropagation();
+  });
+
   function refreshTable() {
     table.draw();
   }
 
-  $('#regionSelect, #localitySelect, #typeSelect, #propertySelect').on('change', refreshTable);
+  // Dropdowny už volají refreshTable samy uvnitř setupMultiselect
+  // $('#regionSelect, #localitySelect, #typeSelect, #propertySelect').on('change', refreshTable); <-- OLD
   $('#dateFrom, #timeFrom, #dateTo, #timeTo').on('change', refreshTable);
 
-  // Debounce pro textové inputy
   let searchTimeout;
   $('#globalSearch').on('keyup', function () {
     clearTimeout(searchTimeout);
@@ -176,60 +272,66 @@ $(document).ready(function () {
     searchTimeout = setTimeout(refreshTable, 400);
   });
 
-  // Page length
   $('#pageLengthSelect').on('change', function () {
     table.page.len($(this).val()).draw();
   });
 
-  // Clear filters
   $('#clearFilters').on('click', function () {
-    $('#regionSelect, #localitySelect, #typeSelect, #propertySelect').val('');
+    // Reset checkboxů
+    $('.multiselect-dropdown input[type="checkbox"]').prop('checked', false);
+
+    // Reset textů tlačítek
+    $('#regionBtn').text('Region: Vše');
+    $('#localityBtn').text('Lokalita: Vše');
+    $('#typeBtn').text('Typ: Vše');
+    $('#propertyBtn').text('Vlastnost: Vše');
+
     $('#dateFrom, #timeFrom, #dateTo, #timeTo').val('');
     $('#globalSearch').val('');
     $('.filter-input').val('');
     refreshTable();
   });
 
-  // Export CSV
   $('#exportCSV').on('click', function () {
     const params = buildParams(table);
     window.location.href = '/api/devicedata/csv?' + params.toString();
   });
 
-  // Export Excel
   $('#exportXLSX').on('click', function () {
     const params = buildParams(table);
     window.location.href = '/api/devicedata/xlsx?' + params.toString();
   });
 
-  // Helper pro sestavení parametrů
   function buildParams(dt) {
     const params = new URLSearchParams();
 
-    const region = $('#regionSelect').val(); if (region) params.append('region', region);
-    const locality = $('#localitySelect').val(); if (locality) params.append('locality', locality);
-    const type = $('#typeSelect').val(); if (type) params.append('type', type);
-    const property = $('#propertySelect').val(); if (property) params.append('property', property);
+    // Pro array parametry musíme přidat každý zvlášť: region=A&region=B
+    const regions = getSelectedValues('#regionList');
+    regions.forEach(r => params.append('region', r));
+
+    const localities = getSelectedValues('#localityList');
+    localities.forEach(l => params.append('locality', l));
+
+    const types = getSelectedValues('#typeList');
+    types.forEach(t => params.append('type', t));
+
+    const properties = getSelectedValues('#propertyList');
+    properties.forEach(p => params.append('property', p));
 
     const dFrom = $('#dateFrom').val(); if (dFrom) params.append('dateFrom', dFrom);
     const tFrom = $('#timeFrom').val(); if (tFrom) params.append('timeFrom', tFrom);
     const dTo = $('#dateTo').val(); if (dTo) params.append('dateTo', dTo);
     const tTo = $('#timeTo').val(); if (tTo) params.append('timeTo', tTo);
-
     const search = $('#globalSearch').val(); if (search) params.append('search', search);
-
-    const order = dt.order()[0]; // [colIdx, dir]
+    const order = dt.order()[0];
     params.append('orderCol', order[0]);
     params.append('orderDir', order[1]);
-
     $('.filter-input').each(function (i) {
       const val = $(this).val();
       if (val) params.append('col' + i, val);
     });
-
     return params;
   }
 
-  // Footer year
   $('#currentYear').text(new Date().getFullYear());
 });

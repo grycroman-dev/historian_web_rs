@@ -15,7 +15,7 @@
 <body>
   <header>
     <div class="logo-container">
-      <!-- <img src="logo-light.png" alt="Logo" id="logo" /> -->
+      <img src="logo-light.png" alt="Logo" id="logo" />
       <h1>RCMS RCOM / AuditLog</h1>
     </div>
     <div class="theme-switch">
@@ -34,29 +34,25 @@
       <input type="text" id="globalSearch" placeholder="Hledat…" aria-label="Globální hledání" />
     </div>
 
-    <div class="filter-box">
+    <div class="filter-box custom-multiselect" id="regionBox">
       <i class="fas fa-globe-europe"></i>
-      <select id="regionSelect" aria-label="Filtr Region">
-        <option value="">— všechny regiony —</option>
-      </select>
+      <button type="button" class="multiselect-btn" id="regionBtn">Region: Vše</button>
+      <div class="multiselect-dropdown" id="regionList"></div>
     </div>
-    <div class="filter-box">
+    <div class="filter-box custom-multiselect" id="localityBox">
       <i class="fas fa-map-marker-alt"></i>
-      <select id="localitySelect" aria-label="Filtr Lokalita">
-        <option value="">— všechny lokality —</option>
-      </select>
+      <button type="button" class="multiselect-btn" id="localityBtn">Lokalita: Vše</button>
+      <div class="multiselect-dropdown" id="localityList"></div>
     </div>
-    <div class="filter-box">
+    <div class="filter-box custom-multiselect" id="typeBox">
       <i class="fas fa-cube"></i>
-      <select id="typeSelect" aria-label="Filtr Typ">
-        <option value="">— všechny typy —</option>
-      </select>
+      <button type="button" class="multiselect-btn" id="typeBtn">Typ: Vše</button>
+      <div class="multiselect-dropdown" id="typeList"></div>
     </div>
-    <div class="filter-box">
+    <div class="filter-box custom-multiselect" id="propertyBox">
       <i class="fas fa-tag"></i>
-      <select id="propertySelect" aria-label="Filtr Vlastnost">
-        <option value="">— všechny vlastnosti —</option>
-      </select>
+      <button type="button" class="multiselect-btn" id="propertyBtn">Vlastnost: Vše</button>
+      <div class="multiselect-dropdown" id="propertyList"></div>
     </div>
 
     <div class="filter-box">
@@ -146,8 +142,7 @@
       <button id="closeHelp" aria-label="Zavřít nápovědu">&times;</button>
       <ul>
         <li><kbd>Ctrl + M</kbd> – přepnutí světlého/tmavého režimu</li>
-        <li><kbd>Tab</kbd> – přechod mezi ovládacími prvky</li>
-        <li><kbd>Enter</kbd> – aktivace tlačítek a rozbalení detailu</li>
+        <li><kbd>Alt + C</kbd> – zrušení všech filtrů</li>
         <li><kbd>Esc</kbd> – zavření nápovědy</li>
       </ul>
     </div>

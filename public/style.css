@@ -123,6 +123,79 @@ input:checked+.slider:before {
   transform: translateY(-50%);
   color: #888;
   pointer-events: none;
+  z-index: 10;
+}
+
+/* Custom Multi-select */
+.custom-multiselect {
+  position: relative;
+  display: inline-block;
+  min-width: 200px;
+}
+
+.multiselect-btn {
+  width: 100%;
+  padding: .4rem .5rem .4rem 2rem;
+  font-size: .9rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.multiselect-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  max-height: 300px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  padding: 0.5rem;
+}
+
+.multiselect-dropdown.show {
+  display: block;
+}
+
+.multiselect-dropdown label {
+  display: block;
+  padding: 0.2rem 0;
+  cursor: pointer;
+}
+
+.multiselect-dropdown label:hover {
+  background-color: #f0f0f0;
+}
+
+.multiselect-dropdown input[type="checkbox"] {
+  margin-right: 0.5rem;
+}
+
+/* Dark mode for multiselect */
+body.dark-mode .multiselect-btn {
+  background: #333;
+  color: #fff;
+  border-color: #555;
+}
+
+body.dark-mode .multiselect-dropdown {
+  background: #333;
+  border-color: #555;
+}
+
+body.dark-mode .multiselect-dropdown label:hover {
+  background-color: #444;
 }
 
 /* BUTTONS */
@@ -176,8 +249,32 @@ input:checked+.slider:before {
   margin-bottom: 2rem;
 }
 
+/* Table Styling Updates */
 table.dataTable {
+  border-collapse: collapse;
   width: 100% !important;
+  border: 1px solid #ddd;
+}
+
+table.dataTable th,
+table.dataTable td {
+  border: 1px solid #ddd;
+  padding: 8px;
+}
+
+/* Zebra Striping */
+table.dataTable tbody tr:nth-child(odd) {
+  background-color: #fff;
+}
+
+table.dataTable tbody tr:nth-child(even) {
+  background-color: #f0f0f0 !important;
+  /* Increased contrast */
+}
+
+/* Hover effect */
+table.dataTable tbody tr:hover {
+  background-color: #e0e0e0 !important;
 }
 
 /* Table Filter Inputs */
@@ -189,7 +286,6 @@ table.dataTable thead input,
   border: 1px solid #ccc;
   border-radius: 3px;
   box-sizing: border-box;
-  /* Ensure padding doesn't affect width */
 }
 
 table.dataTable thead input:focus,
@@ -306,6 +402,26 @@ body.dark-mode kbd {
 body.dark-mode table.dataTable tbody tr {
   background-color: #2d2d2d;
   color: #e0e0e0;
+  border-color: #444;
+}
+
+body.dark-mode table.dataTable th,
+body.dark-mode table.dataTable td {
+  border-color: #444;
+}
+
+body.dark-mode table.dataTable tbody tr:nth-child(odd) {
+  background-color: #2d2d2d;
+  /* Match base */
+}
+
+body.dark-mode table.dataTable tbody tr:nth-child(even) {
+  background-color: #383838 !important;
+  /* Lighter dark for contrast */
+}
+
+body.dark-mode table.dataTable tbody tr:hover {
+  background-color: #444 !important;
 }
 
 body.dark-mode table.dataTable tbody tr.odd {

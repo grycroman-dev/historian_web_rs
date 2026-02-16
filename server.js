@@ -23,16 +23,33 @@ function escapeLike(str) {
     .replace(/\]/g, '[]]');
 }
 
+// Funkce pro přidání filtru (single nebo multi)
+function addFilter(requestParams, whereConditions, paramName, dbColumn, values) {
+  if (!values) return;
+  const vals = Array.isArray(values) ? values : [values];
+  if (vals.length === 0) return;
+
+  if (vals.length === 1) {
+    requestParams.input(paramName, sql.NVarChar, vals[0]);
+    whereConditions.push(`${dbColumn} = @${paramName}`);
+  } else {
+    // Multi-select: IN (@p_0, @p_1, ...)
+    const paramNames = [];
+    vals.forEach((val, index) => {
+      const pName = `${paramName}_${index}`;
+      requestParams.input(pName, sql.NVarChar, val);
+      paramNames.push(`@${pName}`);
+    });
+    whereConditions.push(`${dbColumn} IN (${paramNames.join(', ')})`);
+  }
+}
+
 // Načtení filtrů (Region, Locality, Type, Property)
 app.get('/api/filters', async (req, res) => {
   try {
     const pool = await getPool();
 
     // Načteme unikátní hodnoty pro filtry
-    // Pozn: Pro velký objem dat by bylo lepší mít samostatné tabulky (což máme: DeviceRegion, atd.)
-    // Ale zde pro jednoduchost a jistotu vezmeme to, co je v pohledu nebo tabulkách.
-    // V zadání máme tabulky DeviceRegion, DeviceLocality, DeviceType, DeviceProperty.
-
     const regions = await pool.request().query('SELECT Name FROM dbo.DeviceRegion ORDER BY Name');
     const localities = await pool.request().query('SELECT Name FROM dbo.DeviceLocality ORDER BY Name');
     const types = await pool.request().query('SELECT Name FROM dbo.DeviceType ORDER BY Name');
@@ -56,6 +73,8 @@ app.get('/api/devicedata', async (req, res) => {
   try {
     const pool = await getPool();
 
+    console.log('DATA REQUEST Query:', req.query);
+
     const draw = parseInt(req.query.draw) || 1;
     const start = parseInt(req.query.start) || 0;
     const length = parseInt(req.query.length) || 10;
@@ -63,19 +82,6 @@ app.get('/api/devicedata', async (req, res) => {
     const orderColIdx = parseInt(req.query['order[0][column]']) || 0;
     const orderDir = req.query['order[0][dir]'] === 'asc' ? 'ASC' : 'DESC';
 
-    // Specifické filtry
-    const region = req.query.region;
-    const locality = req.query.locality;
-    const type = req.query.type;
-    const property = req.query.property;
-
-    const dateFrom = req.query.dateFrom;
-    const dateTo = req.query.dateTo;
-    const timeFrom = req.query.timeFrom;
-    const timeTo = req.query.timeTo;
-
-    // Mapování indexů sloupců z DataTables na názvy v DB
-    // 0: Id, 1: ModifiedOn, 2: Name, 3: DeviceRegion, 4: DeviceLocality, 5: Frequency, 6: DeviceType, 7: DeviceProperty, 8: OldValue, 9: NewValue
     const columns = [
       'Id', 'ModifiedOn', 'Name', 'DeviceRegion', 'DeviceLocality',
       'Frequency', 'DeviceType', 'DeviceProperty', 'OldValue', 'NewValue'
@@ -86,39 +92,28 @@ app.get('/api/devicedata', async (req, res) => {
     let whereConditions = [];
     const requestParams = pool.request();
 
-    // Filtry dropdownů
-    if (region) {
-      requestParams.input('region', sql.NVarChar, region);
-      whereConditions.push('DeviceRegion = @region');
-    }
-    if (locality) {
-      requestParams.input('locality', sql.NVarChar, locality);
-      whereConditions.push('DeviceLocality = @locality');
-    }
-    if (type) {
-      requestParams.input('type', sql.NVarChar, type);
-      whereConditions.push('DeviceType = @type');
-    }
-    if (property) {
-      requestParams.input('property', sql.NVarChar, property);
-      whereConditions.push('DeviceProperty = @property');
-    }
+    // Filtry dropdownů (Multi-select)
+    // Akceptujeme parametry s i bez hranatých závorek (kvůli serializaci jQuery/DataTables)
+    addFilter(requestParams, whereConditions, 'region', 'DeviceRegion', req.query.region || req.query['region[]']);
+    addFilter(requestParams, whereConditions, 'locality', 'DeviceLocality', req.query.locality || req.query['locality[]']);
+    addFilter(requestParams, whereConditions, 'type', 'DeviceType', req.query.type || req.query['type[]']);
+    addFilter(requestParams, whereConditions, 'property', 'DeviceProperty', req.query.property || req.query['property[]']);
 
     // Filtry data a času
-    if (dateFrom) {
-      requestParams.input('dateFrom', sql.Date, dateFrom);
+    if (req.query.dateFrom) {
+      requestParams.input('dateFrom', sql.Date, req.query.dateFrom);
       whereConditions.push('CAST(ModifiedOn AS DATE) >= @dateFrom');
     }
-    if (dateTo) {
-      requestParams.input('dateTo', sql.Date, dateTo);
+    if (req.query.dateTo) {
+      requestParams.input('dateTo', sql.Date, req.query.dateTo);
       whereConditions.push('CAST(ModifiedOn AS DATE) <= @dateTo');
     }
-    if (timeFrom && timeFrom.trim() !== '') {
-      requestParams.input('timeFrom', sql.VarChar(5), timeFrom);
+    if (req.query.timeFrom && req.query.timeFrom.trim() !== '') {
+      requestParams.input('timeFrom', sql.VarChar(5), req.query.timeFrom);
       whereConditions.push("CONVERT(CHAR(5), ModifiedOn, 108) >= @timeFrom");
     }
-    if (timeTo && timeTo.trim() !== '') {
-      requestParams.input('timeTo', sql.VarChar(5), timeTo);
+    if (req.query.timeTo && req.query.timeTo.trim() !== '') {
+      requestParams.input('timeTo', sql.VarChar(5), req.query.timeTo);
       whereConditions.push("CONVERT(CHAR(5), ModifiedOn, 108) <= @timeTo");
     }
 
@@ -212,16 +207,6 @@ app.get('/api/devicedata/csv', async (req, res) => {
     const orderColIdx = parseInt(req.query.orderCol) || 0;
     const orderDir = req.query.orderDir === 'asc' ? 'ASC' : 'DESC';
 
-    const region = req.query.region;
-    const locality = req.query.locality;
-    const type = req.query.type;
-    const property = req.query.property;
-
-    const dateFrom = req.query.dateFrom;
-    const dateTo = req.query.dateTo;
-    const timeFrom = req.query.timeFrom;
-    const timeTo = req.query.timeTo;
-
     const columns = [
       'Id', 'ModifiedOn', 'Name', 'DeviceRegion', 'DeviceLocality',
       'Frequency', 'DeviceType', 'DeviceProperty', 'OldValue', 'NewValue'
@@ -230,16 +215,16 @@ app.get('/api/devicedata/csv', async (req, res) => {
 
     let whereConditions = [];
 
-    // Stejná logika filtrů jako nahoře...
-    if (region) { requestParams.input('region', sql.NVarChar, region); whereConditions.push('DeviceRegion = @region'); }
-    if (locality) { requestParams.input('locality', sql.NVarChar, locality); whereConditions.push('DeviceLocality = @locality'); }
-    if (type) { requestParams.input('type', sql.NVarChar, type); whereConditions.push('DeviceType = @type'); }
-    if (property) { requestParams.input('property', sql.NVarChar, property); whereConditions.push('DeviceProperty = @property'); }
+    // Filtry dropdownů (Multi-select)
+    addFilter(requestParams, whereConditions, 'region', 'DeviceRegion', req.query.region || req.query['region[]']);
+    addFilter(requestParams, whereConditions, 'locality', 'DeviceLocality', req.query.locality || req.query['locality[]']);
+    addFilter(requestParams, whereConditions, 'type', 'DeviceType', req.query.type || req.query['type[]']);
+    addFilter(requestParams, whereConditions, 'property', 'DeviceProperty', req.query.property || req.query['property[]']);
 
-    if (dateFrom) { requestParams.input('dateFrom', sql.Date, dateFrom); whereConditions.push('CAST(ModifiedOn AS DATE) >= @dateFrom'); }
-    if (dateTo) { requestParams.input('dateTo', sql.Date, dateTo); whereConditions.push('CAST(ModifiedOn AS DATE) <= @dateTo'); }
-    if (timeFrom) { requestParams.input('timeFrom', sql.VarChar(5), timeFrom); whereConditions.push("CONVERT(CHAR(5), ModifiedOn, 108) >= @timeFrom"); }
-    if (timeTo) { requestParams.input('timeTo', sql.VarChar(5), timeTo); whereConditions.push("CONVERT(CHAR(5), ModifiedOn, 108) <= @timeTo"); }
+    if (req.query.dateFrom) { requestParams.input('dateFrom', sql.Date, req.query.dateFrom); whereConditions.push('CAST(ModifiedOn AS DATE) >= @dateFrom'); }
+    if (req.query.dateTo) { requestParams.input('dateTo', sql.Date, req.query.dateTo); whereConditions.push('CAST(ModifiedOn AS DATE) <= @dateTo'); }
+    if (req.query.timeFrom) { requestParams.input('timeFrom', sql.VarChar(5), req.query.timeFrom); whereConditions.push("CONVERT(CHAR(5), ModifiedOn, 108) >= @timeFrom"); }
+    if (req.query.timeTo) { requestParams.input('timeTo', sql.VarChar(5), req.query.timeTo); whereConditions.push("CONVERT(CHAR(5), ModifiedOn, 108) <= @timeTo"); }
 
     if (searchValue) {
       const escapedSearch = escapeSqlString(escapeLike(searchValue));
@@ -313,20 +298,9 @@ app.get('/api/devicedata/xlsx', async (req, res) => {
     const pool = await getPool();
     const requestParams = pool.request();
 
-    // -- Opakujeme logiku pro sestavení WHERE (stejné jako pro CSV) --
     const searchValue = req.query.search || '';
     const orderColIdx = parseInt(req.query.orderCol) || 0;
     const orderDir = req.query.orderDir === 'asc' ? 'ASC' : 'DESC';
-
-    const region = req.query.region;
-    const locality = req.query.locality;
-    const type = req.query.type;
-    const property = req.query.property;
-
-    const dateFrom = req.query.dateFrom;
-    const dateTo = req.query.dateTo;
-    const timeFrom = req.query.timeFrom;
-    const timeTo = req.query.timeTo;
 
     const columns = [
       'Id', 'ModifiedOn', 'Name', 'DeviceRegion', 'DeviceLocality',
@@ -336,15 +310,16 @@ app.get('/api/devicedata/xlsx', async (req, res) => {
 
     let whereConditions = [];
 
-    if (region) { requestParams.input('region', sql.NVarChar, region); whereConditions.push('DeviceRegion = @region'); }
-    if (locality) { requestParams.input('locality', sql.NVarChar, locality); whereConditions.push('DeviceLocality = @locality'); }
-    if (type) { requestParams.input('type', sql.NVarChar, type); whereConditions.push('DeviceType = @type'); }
-    if (property) { requestParams.input('property', sql.NVarChar, property); whereConditions.push('DeviceProperty = @property'); }
+    // Filtry dropdownů (Multi-select)
+    addFilter(requestParams, whereConditions, 'region', 'DeviceRegion', req.query.region || req.query['region[]']);
+    addFilter(requestParams, whereConditions, 'locality', 'DeviceLocality', req.query.locality || req.query['locality[]']);
+    addFilter(requestParams, whereConditions, 'type', 'DeviceType', req.query.type || req.query['type[]']);
+    addFilter(requestParams, whereConditions, 'property', 'DeviceProperty', req.query.property || req.query['property[]']);
 
-    if (dateFrom) { requestParams.input('dateFrom', sql.Date, dateFrom); whereConditions.push('CAST(ModifiedOn AS DATE) >= @dateFrom'); }
-    if (dateTo) { requestParams.input('dateTo', sql.Date, dateTo); whereConditions.push('CAST(ModifiedOn AS DATE) <= @dateTo'); }
-    if (timeFrom) { requestParams.input('timeFrom', sql.VarChar(5), timeFrom); whereConditions.push("CONVERT(CHAR(5), ModifiedOn, 108) >= @timeFrom"); }
-    if (timeTo) { requestParams.input('timeTo', sql.VarChar(5), timeTo); whereConditions.push("CONVERT(CHAR(5), ModifiedOn, 108) <= @timeTo"); }
+    if (req.query.dateFrom) { requestParams.input('dateFrom', sql.Date, req.query.dateFrom); whereConditions.push('CAST(ModifiedOn AS DATE) >= @dateFrom'); }
+    if (req.query.dateTo) { requestParams.input('dateTo', sql.Date, req.query.dateTo); whereConditions.push('CAST(ModifiedOn AS DATE) <= @dateTo'); }
+    if (req.query.timeFrom) { requestParams.input('timeFrom', sql.VarChar(5), req.query.timeFrom); whereConditions.push("CONVERT(CHAR(5), ModifiedOn, 108) >= @timeFrom"); }
+    if (req.query.timeTo) { requestParams.input('timeTo', sql.VarChar(5), req.query.timeTo); whereConditions.push("CONVERT(CHAR(5), ModifiedOn, 108) <= @timeTo"); }
 
     if (searchValue) {
       const escapedSearch = escapeSqlString(escapeLike(searchValue));
