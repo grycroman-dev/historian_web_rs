@@ -25,7 +25,7 @@ body.dark-mode {
 }
 
 body {
-  font-family: Arial, sans-serif;
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   padding: 1rem;
   background: #f7f7f7;
   color: #333;
@@ -476,6 +476,14 @@ body.dark-mode .modal-content {
   color: #e0e0e0;
 }
 
+body.dark-mode #closeHelp {
+  color: #e0e0e0;
+}
+
+body.dark-mode #closeHelp:hover {
+  color: #fff;
+}
+
 body.dark-mode kbd {
   background: #444;
   color: #ccc;
@@ -595,12 +603,18 @@ body.dark-mode table.dataTable tbody tr.new-record {
 
 .toggle-icon {
   transition: transform 0.3s ease;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
 }
 
 .controls-header.collapsed .toggle-icon {
   padding: 5px 10px;
   border-radius: 6px;
   border: 1px solid var(--border-color);
+  background-color: var(--bg-color);
+  /* Improve contrast */
 }
 
 .btn-icon {
@@ -838,3 +852,7 @@ button i,
 }
 
 /* Dark Mode Adjustments provided by var(--...) */
+
+.controls-content.collapsed {
+  display: none;
+}
