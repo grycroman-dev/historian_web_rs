@@ -685,8 +685,7 @@ body.dark-mode table.dataTable tbody tr.new-record {
 
 .search-box #clearSearch {
   position: absolute;
-  right: 14px;
-  /* Mirrored to left: 10px + 4px adjustment */
+  right: 12px;
   top: 50%;
   transform: translateY(-50%);
   border: none;
@@ -735,9 +734,16 @@ button i,
 }
 
 /* Fix for icon-only buttons (Saved Filters & clear search) */
-.saved-filters-group .btn-icon i,
-#clearSearch i {
+.saved-filters-group .btn-icon i {
   margin-right: 0;
+}
+
+#clearSearch i {
+  margin: 0 !important;
+  padding: 0 !important;
+  width: auto !important;
+  font-size: 1rem;
+  /* Ensure consistent size */
 }
 
 /* Dark Mode Adjustments provided by var(--...) */
