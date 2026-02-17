@@ -62,7 +62,6 @@ $(document).ready(function () {
         localStorage.setItem('controls_collapsed', isCollapsed);
 
         if (!isCollapsed) {
-          // Focus first element when opening
           setTimeout(() => {
             const firstInput = document.getElementById('savedFiltersSelect');
             if (firstInput) firstInput.focus();
@@ -70,11 +69,53 @@ $(document).ready(function () {
         }
       }
     }
+
+    const ensurePanelExpanded = () => {
+      const header = document.getElementById('controlsHeader');
+      const content = document.getElementById('controlsContent');
+      if (content && content.classList.contains('collapsed')) {
+        if (header) header.classList.remove('collapsed');
+        content.classList.remove('collapsed');
+        localStorage.setItem('controls_collapsed', 'false');
+      }
+    };
+
+    // Fokus na filtry: Alt+F
+    if (e.altKey && (e.key === 'f' || e.key === 'F')) {
+      e.preventDefault();
+      ensurePanelExpanded();
+      setTimeout(() => {
+        const el = document.getElementById('savedFiltersSelect');
+        if (el) el.focus();
+      }, 50);
+    }
+
+    // Fokus na hledání: Alt+H
+    if (e.altKey && (e.key === 'h' || e.key === 'H')) {
+      e.preventDefault();
+      ensurePanelExpanded();
+      setTimeout(() => {
+        const el = document.getElementById('globalSearch');
+        if (el) el.focus();
+      }, 50);
+    }
+
+    // Auto-refresh: Alt+A
+    if (e.altKey && (e.key === 'a' || e.key === 'A')) {
+      e.preventDefault();
+      ensurePanelExpanded();
+      setTimeout(() => {
+        const el = document.getElementById('autoRefreshToggle');
+        if (el) {
+          el.click();
+          el.focus();
+        }
+      }, 50);
+    }
   });
 
   // --- 1.5 Data Source Logic ---
   const datasourceToggle = document.getElementById('datasourceToggle');
-
   function updateDatasourceUI(isBackup) {
     if (datasourceToggle) datasourceToggle.checked = isBackup;
 
