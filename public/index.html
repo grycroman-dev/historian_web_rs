@@ -201,6 +201,20 @@
     </div>
   </div>
 
+  <div id="changelogModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="changelogTitle">
+    <div class="modal-content modal-lg">
+      <h2 id="changelogTitle">Historie změn</h2>
+      <button id="closeChangelog" aria-label="Zavřít changelog">&times;</button>
+      <div id="changelogContent" class="changelog-text">Načítání...</div>
+      <div class="modal-footer" style="text-align: right; margin-top: 10px;">
+        <a href="/api/changelog/download" class="btn-link"
+          style="color: var(--accent-color); text-decoration: none; font-size: 0.9em;" download>
+          <i class="fas fa-download"></i> Stáhnout Changelog
+        </a>
+      </div>
+    </div>
+  </div>
+
   <script src="vendors/jquery/jquery.min.js"></script>
   <script src="vendors/datatables/datatables.min.js"></script>
   <script src="vendors/mark/mark.min.js"></script>

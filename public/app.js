@@ -1,9 +1,14 @@
 $(document).ready(function () {
   console.log('App init...');
 
+  // Highlighting State
+  window.lastMaxId = 0;
+  window.isInitialLoad = true;
+
   // --- Configuration ---
   const CONFIG = {
-    NEW_RECORD_HIGHLIGHT_DURATION: 5000 // ms - How long the green highlight stays
+    NEW_RECORD_HIGHLIGHT_DURATION: 5000, // ms - How long the green highlight stays
+    REFRESH_INTERVAL: 5000 // ms
   };
 
   // --- 1. Theme Toggle Logic ---
@@ -93,6 +98,12 @@ $(document).ready(function () {
         const el = document.getElementById('savedFiltersSelect');
         if (el) el.focus();
       }, 50);
+    }
+
+    // Auto-Refresh Toggle: Alt+A
+    if (e.altKey && (e.key === 'a' || e.key === 'A')) {
+      e.preventDefault();
+      $('#autoRefreshToggle').click();
     }
 
     // Fokus na hledání: Alt+H
@@ -203,19 +214,36 @@ $(document).ready(function () {
 
   if (autoRefreshToggle) {
     // Init state
+    const savedAutoRefresh = localStorage.getItem('historian_auto_refresh') === 'true';
+    if (savedAutoRefresh) {
+      autoRefreshToggle.checked = true;
+    }
     updateAutoRefreshIcon(autoRefreshToggle.checked);
 
-    autoRefreshToggle.addEventListener('change', () => {
-      updateAutoRefreshIcon(autoRefreshToggle.checked);
+    // Start immediately if saved as true
+    if (savedAutoRefresh) {
+      autoRefreshInterval = setInterval(() => {
+        if (typeof table !== 'undefined') {
+          table.ajax.reload(null, false);
+        }
+      }, CONFIG.REFRESH_INTERVAL);
+    }
 
-      if (autoRefreshToggle.checked) {
+    autoRefreshToggle.addEventListener('change', () => {
+      const isChecked = autoRefreshToggle.checked;
+      localStorage.setItem('historian_auto_refresh', isChecked);
+      updateAutoRefreshIcon(isChecked);
+
+      if (isChecked) {
+        if (autoRefreshInterval) clearInterval(autoRefreshInterval);
         autoRefreshInterval = setInterval(() => {
           if (typeof table !== 'undefined') {
             table.ajax.reload(null, false);
           }
-        }, 30000);
+        }, CONFIG.REFRESH_INTERVAL);
       } else {
         clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
       }
     });
   }
@@ -621,22 +649,45 @@ $(document).ready(function () {
       }
     },
     rowCallback: function (row, data) {
-      // Highlight rows newer than 60 seconds
-      if (data.ModifiedOn) {
-        const recordTime = new Date(data.ModifiedOn).getTime();
-        const now = new Date().getTime();
-        const diff = now - recordTime;
-        if (diff < 60000 && diff >= 0) {
-          $(row).addClass('new-record');
+      // Check for ID in various cases (Id, ID, id)
+      const idVal = data.Id || data.ID || data.id;
+      if (idVal) {
+        const recordId = parseInt(idVal);
 
-          // Remove highlight after configured duration
+        // Highlight only if NOT initial load AND record is newer than last seen max ID
+        // Using ID is more robust than Date for "New Records" check
+        if (!window.isInitialLoad && window.lastMaxId > 0 && recordId > window.lastMaxId) {
+          $(row).addClass('new-record');
           setTimeout(() => {
             $(row).removeClass('new-record');
           }, CONFIG.NEW_RECORD_HIGHLIGHT_DURATION);
         }
       }
     },
-    drawCallback: function () {
+    drawCallback: function (settings) {
+      // Find max Id in current data and update watermark
+      const api = this.api();
+      const rows = api.rows({ page: 'current' }).data();
+
+      let currentMaxId = 0;
+      rows.each(function (rowData) {
+        const rId = rowData.Id || rowData.ID || rowData.id;
+        if (rId) {
+          const id = parseInt(rId);
+          if (id > currentMaxId) currentMaxId = id;
+        }
+      });
+
+      // Update the high watermark
+      if (currentMaxId > window.lastMaxId) {
+        window.lastMaxId = currentMaxId;
+      }
+
+      // After first draw, allow highlighting
+      if (window.isInitialLoad) {
+        window.isInitialLoad = false;
+      }
+
       const body = $('#recordsTable tbody');
       body.unmark();
 
@@ -767,6 +818,8 @@ $(document).ready(function () {
     }, 4000);
   });
 
+
+
   function buildParams(dt) {
     const params = new URLSearchParams();
     params.append('dataSource', localStorage.getItem('dataSource') || 'main');
@@ -799,17 +852,6 @@ $(document).ready(function () {
     return params;
   }
 
-  $('#currentYear').text(new Date().getFullYear());
-
-  // Načtení verze aplikace
-  $.get('/api/version', function (data) {
-    if (data && data.version) {
-      $('#appVersion').text(data.version);
-    }
-  });
-
-  // --- 4. Filter Population Logic ---
-  // --- 4. Filter Population Logic ---
   function createCheckboxList(containerId, items) {
     const container = $(containerId);
     container.empty();
@@ -831,4 +873,68 @@ $(document).ready(function () {
     if (data.types) createCheckboxList('#typeList', data.types);
     if (data.properties) createCheckboxList('#propertyList', data.properties);
   });
+
+  // Načtení verze aplikace
+  $.get('/api/version', function (data) {
+    if (data && data.version) {
+      const versionEl = $('#appVersion');
+      versionEl.text(data.version);
+
+      // Clickable version
+      versionEl.css({ 'cursor': 'pointer', 'text-decoration': 'underline' });
+      versionEl.attr('title', 'Klikněte pro zobrazení historie změn');
+
+      versionEl.on('click', function () {
+        $('#changelogModal').fadeIn();
+        $('#changelogContent').text('Načítání...');
+
+        $.get('/api/changelog', function (res) {
+          if (res && res.content) {
+            // Improved parsing to reduce gaps
+            // Improved parsing to reduce gaps
+            let html = res.content
+              .replace(/\r\n/g, '\n') // Normalize newlines
+              .replace(/\n+/g, '\n') // Collapse multiple newlines to one
+              .replace(/^# (.*$)/gim, '') // Remove H1 Title
+              .replace(/^## (.*$)/gim, '<h3>$1</h3>') // H2 -> H3
+              .replace(/^### (.*$)/gim, '<h4>$1</h4>') // H3 -> H4
+              .replace(/^\- (.*$)/gim, '<ul><li>$1</li></ul>') // List items
+              .replace(/<\/ul>\n*<ul>/gim, '') // Merge adjacent lists
+              .replace(/([^>])\n/g, '$1<br />'); // Newlines to BR only if NOT after a tag
+
+            $('#changelogContent').html(html);
+          } else {
+            $('#changelogContent').text('Historie změn není dostupná.');
+          }
+        }).fail(function () {
+          $('#changelogContent').text('Chyba při načítání changelogu.');
+        });
+      });
+    }
+  });
+
+  // Close Changelog Modal
+  $('#closeChangelog').on('click', function () {
+    $('#changelogModal').fadeOut();
+  });
+
+  // Close on outside click (generic for both modals)
+  $(window).on('click', function (event) {
+    if ($(event.target).is('#helpModal')) {
+      $('#helpModal').fadeOut();
+    }
+    if ($(event.target).is('#changelogModal')) {
+      $('#changelogModal').fadeOut();
+    }
+  });
+
+  // Close on ESC key
+  $(document).on('keydown', function (e) {
+    if (e.key === "Escape") {
+      $('#helpModal').fadeOut();
+      $('#changelogModal').fadeOut();
+    }
+  });
+
+  $('#currentYear').text(new Date().getFullYear());
 });

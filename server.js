@@ -3,6 +3,7 @@ const path = require('path');
 const https = require('https');
 const http = require('http');
 const fs = require('fs');
+const ExcelJS = require('exceljs'); // Added based on package.json
 const { sql, getPool } = require('./config/db');
 
 const app = express();
@@ -66,14 +67,13 @@ app.get('/api/filters', async (req, res) => {
       types: types.recordset.map(t => t.Name),
       properties: properties.recordset.map(p => p.Name)
     });
-
   } catch (err) {
     console.error('Chyba při načítání filtrů:', err);
     res.status(500).json({ error: 'Chyba při načítání filtrů' });
   }
 });
 
-// Načtení dat (DeviceDataView)
+// Získání verze aplikace
 app.get('/api/version', (req, res) => {
   try {
     const packageJson = require('./package.json');
@@ -84,6 +84,44 @@ app.get('/api/version', (req, res) => {
   }
 });
 
+// Získání changelogu
+app.get('/api/changelog', (req, res) => {
+  try {
+    const changelogPath = path.join(__dirname, 'CHANGELOG.md');
+    if (fs.existsSync(changelogPath)) {
+      const content = fs.readFileSync(changelogPath, 'utf8');
+      res.json({ content });
+    } else {
+      res.json({ content: 'Changelog nebyl nalezen.' });
+    }
+  } catch (err) {
+    console.error('Chyba při načítání changelogu:', err);
+    res.status(500).json({ error: 'Chyba při načítání changelogu' });
+  }
+});
+
+// Stažení changelogu
+app.get('/api/changelog/download', (req, res) => {
+  const changelogPath = path.join(__dirname, 'CHANGELOG.md');
+  console.log('Download request for:', changelogPath);
+  console.log('File exists:', fs.existsSync(changelogPath));
+
+  fs.readFile(changelogPath, (err, data) => {
+    if (err) {
+      const errorMsg = `Read Error: ${err.message} Path: ${changelogPath}`;
+      console.error(errorMsg);
+      fs.writeFileSync(path.join(__dirname, 'server_error.txt'), errorMsg);
+      res.status(500).send('Serverside error reading file.');
+    } else {
+      res.setHeader('Content-Type', 'text/markdown');
+      res.setHeader('Content-Disposition', 'attachment; filename="CHANGELOG.md"');
+      res.send(data);
+    }
+  });
+
+});
+
+// Načtení dat (DeviceDataView)
 app.get('/api/devicedata', async (req, res) => {
   try {
     const dataSource = req.query.dataSource || 'main'; // 'main' or 'backup'
@@ -109,7 +147,6 @@ app.get('/api/devicedata', async (req, res) => {
     const requestParams = pool.request();
 
     // Filtry dropdownů (Multi-select)
-    // Akceptujeme parametry s i bez hranatých závorek (kvůli serializaci jQuery/DataTables)
     addFilter(requestParams, whereConditions, 'region', 'DeviceRegion', req.query.region || req.query['region[]']);
     addFilter(requestParams, whereConditions, 'locality', 'DeviceLocality', req.query.locality || req.query['locality[]']);
     addFilter(requestParams, whereConditions, 'type', 'DeviceType', req.query.type || req.query['type[]']);
@@ -133,7 +170,6 @@ app.get('/api/devicedata', async (req, res) => {
       whereConditions.push("CONVERT(CHAR(5), ModifiedOn, 108) <= @timeTo");
     }
 
-    // Globální vyhledávání (Fulltext na textové sloupce)
     if (searchValue) {
       const escapedSearch = escapeSqlString(escapeLike(searchValue));
       whereConditions.push(`(
@@ -150,39 +186,26 @@ app.get('/api/devicedata', async (req, res) => {
       )`);
     }
 
-    // Sloupcové filtry (pro inputy pod hlavičkou)
     for (let i = 0; i < columns.length; i++) {
       const val = req.query['col' + i];
       if (val && val.trim() !== '') {
         const colName = columns[i];
         const escapedVal = escapeSqlString(escapeLike(val));
-
-        if (colName === 'Id') {
-          if (/^\d+$/.test(val)) {
-            whereConditions.push(`CAST(${colName} AS NVARCHAR) LIKE N'%${escapedVal}%'`);
-          }
-        } else if (colName === 'ModifiedOn') {
-          whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapedVal}%'`);
-        } else {
-          whereConditions.push(`${colName} LIKE N'%${escapedVal}%' COLLATE Latin1_General_CI_AI`);
-        }
+        if (colName === 'Id') whereConditions.push(`CAST(${colName} AS NVARCHAR) LIKE N'%${escapedVal}%'`);
+        else if (colName === 'ModifiedOn') whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapedVal}%'`);
+        else whereConditions.push(`${colName} LIKE N'%${escapedVal}%' COLLATE Latin1_General_CI_AI`);
       }
     }
 
-    const whereClause = whereConditions.length
-      ? 'WHERE ' + whereConditions.join(' AND ')
-      : '';
+    const whereClause = whereConditions.length ? 'WHERE ' + whereConditions.join(' AND ') : '';
 
-    // Count Total
     const totalRes = await pool.request().query('SELECT COUNT(*) AS cnt FROM dbo.DeviceDataView');
     const recordsTotal = totalRes.recordset[0].cnt;
 
-    // Count Filtered
     const countQuery = `SELECT COUNT(*) AS cnt FROM dbo.DeviceDataView ${whereClause}`;
     const filtRes = await requestParams.query(countQuery);
     const recordsFiltered = filtRes.recordset[0].cnt;
 
-    // Data Query
     const dataQuery = `
       SELECT *
       FROM dbo.DeviceDataView
@@ -216,7 +239,7 @@ app.get('/api/devicedata', async (req, res) => {
 // CSV export
 app.get('/api/devicedata/csv', async (req, res) => {
   try {
-    const dataSource = req.query.dataSource || 'main';
+    const dataSource = req.query.dataSource || 'main'; // 'main' or 'backup'
     const pool = await getPool(dataSource);
     const requestParams = pool.request();
 
@@ -232,7 +255,6 @@ app.get('/api/devicedata/csv', async (req, res) => {
 
     let whereConditions = [];
 
-    // Filtry dropdownů (Multi-select)
     addFilter(requestParams, whereConditions, 'region', 'DeviceRegion', req.query.region || req.query['region[]']);
     addFilter(requestParams, whereConditions, 'locality', 'DeviceLocality', req.query.locality || req.query['locality[]']);
     addFilter(requestParams, whereConditions, 'type', 'DeviceType', req.query.type || req.query['type[]']);
@@ -298,8 +320,8 @@ app.get('/api/devicedata/csv', async (req, res) => {
       ].join(';') + '\n';
     });
 
-    res.header('Content-Type', 'text/csv; charset=utf-8');
-    res.header('Content-Disposition', 'attachment; filename="devicedata.csv"');
+    res.header('Content-Type', 'text/csv');
+    res.attachment('export.csv');
     res.send(csv);
 
   } catch (err) {
@@ -308,11 +330,10 @@ app.get('/api/devicedata/csv', async (req, res) => {
   }
 });
 
-// Excel export
+// XLSX export
 app.get('/api/devicedata/xlsx', async (req, res) => {
   try {
-    const ExcelJS = require('exceljs');
-    const dataSource = req.query.dataSource || 'main'; // Získání parametru zdroje dat
+    const dataSource = req.query.dataSource || 'main'; // 'main' or 'backup'
     const pool = await getPool(dataSource);
     const requestParams = pool.request();
 
@@ -328,7 +349,6 @@ app.get('/api/devicedata/xlsx', async (req, res) => {
 
     let whereConditions = [];
 
-    // Filtry dropdownů (Multi-select)
     addFilter(requestParams, whereConditions, 'region', 'DeviceRegion', req.query.region || req.query['region[]']);
     addFilter(requestParams, whereConditions, 'locality', 'DeviceLocality', req.query.locality || req.query['locality[]']);
     addFilter(requestParams, whereConditions, 'type', 'DeviceType', req.query.type || req.query['type[]']);
@@ -430,21 +450,21 @@ app.get('/api/devicedata/xlsx', async (req, res) => {
   }
 });
 
-// HTTPS Configuration
-const httpsOptions = {
-  pfx: fs.readFileSync(path.join(__dirname, 'config', 'server.pfx')),
+// Start HTTP server (redirects to HTTPS)
+http.createServer((req, res) => {
+  const host = req.headers.host.split(':')[0]; // Remove port if present
+  res.writeHead(301, { "Location": `https://${host}:${HTTPS_PORT}${req.url}` });
+  res.end();
+}).listen(HTTP_PORT, () => {
+  console.log(`HTTP Server running on port ${HTTP_PORT} (Redirects to HTTPS)`);
+});
+
+// Start HTTPS server
+const options = {
+  pfx: fs.readFileSync('./config/server.pfx'),
   passphrase: 'historian'
 };
 
-// Start HTTPS Server
-https.createServer(httpsOptions, app).listen(HTTPS_PORT, () => {
-  console.log(`HTTPS Server running on https://localhost:${HTTPS_PORT}`);
-});
-
-// Start HTTP Server (Redirect to HTTPS)
-http.createServer((req, res) => {
-  res.writeHead(301, { "Location": "https://" + req.headers['host'].replace(/:\d+$/, '') + ":" + HTTPS_PORT + req.url });
-  res.end();
-}).listen(HTTP_PORT, () => {
-  console.log(`HTTP Server running on http://localhost:${HTTP_PORT} (Redirects to HTTPS)`);
+https.createServer(options, app).listen(HTTPS_PORT, () => {
+  console.log(`HTTPS Server running on port ${HTTPS_PORT}`);
 });

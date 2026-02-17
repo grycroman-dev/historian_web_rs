@@ -484,17 +484,6 @@ body.dark-mode #closeHelp:hover {
   color: #fff;
 }
 
-body.dark-mode kbd {
-  background: #444;
-  color: #ccc;
-}
-
-/* DataTables in Dark Mode */
-body.dark-mode table.dataTable tbody tr {
-  background-color: #2d2d2d;
-  color: #e0e0e0;
-  border-color: #444;
-}
 
 body.dark-mode table.dataTable th,
 body.dark-mode table.dataTable td {
@@ -559,10 +548,60 @@ body.dark-mode table.dataTable tbody tr.new-record {
   padding: 15px;
   border-radius: 8px;
   margin: 20px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+  padding: 20px;
+  position: relative;
+  /* Essential for absolute delete button */
+}
+
+/* Close Buttons (Absolute Position) */
+#closeHelp,
+#closeChangelog {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  background: none;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-color);
+  padding: 0;
+  transition: color 0.3s;
+  z-index: 10;
+}
+
+#closeHelp:hover,
+#closeChangelog:hover {
+  color: red;
+}
+
+/* Modal Content Text (Changelog) Spacing */
+.changelog-text {
+  max-height: 400px;
+  overflow-y: auto;
+  text-align: left;
+  padding: 10px 5px;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+}
+
+.changelog-text h3 {
+  margin-top: 10px;
+  margin-bottom: 5px;
+  color: var(--accent-color);
+  font-size: 1.1em;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 2px;
+}
+
+.changelog-text ul {
+  margin: 5px 0;
+  padding-left: 20px;
+}
+
+.changelog-text li {
+  margin-bottom: 2px;
 }
 
 .filters-row {
@@ -855,4 +894,15 @@ button i,
 
 .controls-content.collapsed {
   display: none;
+}
+
+/* Highlighting for new records */
+/* Highlighting for new records (High Specificity) */
+table.dataTable tbody tr.new-record {
+  background-color: rgba(40, 167, 69, 0.3) !important;
+  transition: background-color 0.5s ease-in-out;
+}
+
+body.dark-mode table.dataTable tbody tr.new-record {
+  background-color: rgba(40, 167, 69, 0.5) !important;
 }
