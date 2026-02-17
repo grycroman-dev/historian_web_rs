@@ -598,24 +598,6 @@ body.dark-mode table.dataTable tbody tr.new-record {
 }
 
 .controls-header.collapsed .toggle-icon {
-  transform: rotate(-90deg);
-}
-
-.controls-content {
-  display: block;
-  /* animation? */
-}
-
-.controls-content.collapsed {
-  display: none;
-}
-
-/* Saved Filters & Time */
-.saved-filters-group {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  background: var(--bg-color);
   padding: 5px 10px;
   border-radius: 6px;
   border: 1px solid var(--border-color);
@@ -760,11 +742,38 @@ body.dark-mode table.dataTable tbody tr.new-record {
   align-items: center;
 }
 
-.auto-refresh {
+.auto-refresh,
+.datasource-control {
   display: flex;
   align-items: center;
-  gap: 8px;
   font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+/* Utilities for Switch Labels */
+.text-danger {
+  color: #dc3545 !important;
+}
+
+.text-primary {
+  color: #2196F3;
+}
+
+.small {
+  font-size: 0.8rem;
+}
+
+.fw-bold {
+  font-weight: 600;
+}
+
+.ms-1 {
+  margin-left: 4px;
+}
+
+.mx-1 {
+  margin-left: 4px;
+  margin-right: 4px;
 }
 
 /* Icon Spacing */
@@ -784,6 +793,48 @@ button i,
   width: auto !important;
   font-size: 1rem;
   /* Ensure consistent size */
+}
+
+/* Status Bar */
+.status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 5px;
+}
+
+.status-left,
+.status-right {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.copyright {
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.9rem;
+}
+
+.btn-link:hover {
+  text-decoration: underline;
 }
 
 /* Dark Mode Adjustments provided by var(--...) */

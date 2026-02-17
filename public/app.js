@@ -119,13 +119,30 @@ $(document).ready(function () {
   function updateDatasourceUI(isBackup) {
     if (datasourceToggle) datasourceToggle.checked = isBackup;
 
-    // Toggle header class for styling
+    // Header styling
     const header = document.querySelector('header');
     if (header) {
       if (isBackup) {
         header.classList.add('header-backup');
       } else {
         header.classList.remove('header-backup');
+      }
+    }
+
+    // Footer Status & Icon Switch
+    const dbText = $('#dbStatusText');
+    const dbIconSwitch = $('#dbIconSwitch');
+
+    if (dbText.length) {
+      dbText.text(isBackup ? 'Záložní DB' : 'Hlavní DB');
+      $('#dbStatus').css('color', isBackup ? '#ff4444' : '#00C851');
+    }
+
+    if (dbIconSwitch.length) {
+      if (isBackup) {
+        dbIconSwitch.addClass('text-danger');
+      } else {
+        dbIconSwitch.removeClass('text-danger');
       }
     }
   }
@@ -171,8 +188,21 @@ $(document).ready(function () {
   const autoRefreshToggle = document.getElementById('autoRefreshToggle');
   let autoRefreshInterval;
 
+  function updateAutoRefreshIcon(checked) {
+    const icon = document.getElementById('autoRefreshIcon');
+    if (icon) {
+      if (checked) icon.classList.add('text-danger');
+      else icon.classList.remove('text-danger');
+    }
+  }
+
   if (autoRefreshToggle) {
+    // Init state
+    updateAutoRefreshIcon(autoRefreshToggle.checked);
+
     autoRefreshToggle.addEventListener('change', () => {
+      updateAutoRefreshIcon(autoRefreshToggle.checked);
+
       if (autoRefreshToggle.checked) {
         autoRefreshInterval = setInterval(() => {
           if (typeof table !== 'undefined') {
@@ -185,6 +215,7 @@ $(document).ready(function () {
     });
   }
 
+  const helpBtn = document.getElementById('helpBtn');
   const helpModal = document.getElementById('helpModal');
   const closeHelp = document.getElementById('closeHelp');
 
@@ -201,6 +232,12 @@ $(document).ready(function () {
       if (e.target === helpModal) helpModal.style.display = 'none';
     });
     window.addEventListener('keydown', (e) => {
+      // Help: Alt+F1
+      if (e.altKey && e.key === 'F1') {
+        e.preventDefault();
+        helpModal.style.display = 'block';
+        closeHelp.focus();
+      }
       if (e.key === 'Escape' && helpModal.style.display === 'block') {
         helpModal.style.display = 'none';
         helpBtn.focus();
@@ -600,6 +637,13 @@ $(document).ready(function () {
         const val = $(this).val();
         if (val) body.mark(val);
       });
+
+      // Update Status Bar
+      const info = this.api().page.info();
+      $('#rowCount').text(info.recordsDisplay.toLocaleString());
+      const now = new Date();
+      const utcString = now.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+      $('#lastUpdate').text(utcString);
     }
   });
 
@@ -614,7 +658,20 @@ $(document).ready(function () {
 
   // Dropdowny už volají refreshTable samy uvnitř setupMultiselect
   // $('#regionSelect, #localitySelect, #typeSelect, #propertySelect').on('change', refreshTable); <-- OLD
-  $('#dateFrom, #timeFrom, #dateTo, #timeTo').on('change', refreshTable);
+  // Date Validation & Refresh
+  $('#dateFrom, #timeFrom, #dateTo, #timeTo').on('change', function () {
+    const dFrom = $('#dateFrom').val();
+    const dTo = $('#dateTo').val();
+
+    // Simple validation: From > To
+    if (dFrom && dTo && dFrom > dTo) {
+      alert('Chyba: Datum "Od" nemůže být pozdější než datum "Do".');
+      // Reset current field
+      $(this).val('');
+      return;
+    }
+    refreshTable();
+  });
 
   let searchTimeout;
 
@@ -681,14 +738,23 @@ $(document).ready(function () {
     refreshTable();
   });
 
-  $('#exportCSV').on('click', function () {
-    const params = buildParams(table);
-    window.location.href = '/api/devicedata/csv?' + params.toString();
-  });
+  $('#exportCSV, #exportXLSX').on('click', function () {
+    const btn = $(this);
+    const originalContent = btn.html();
+    const format = btn.attr('id') === 'exportCSV' ? 'csv' : 'xlsx';
 
-  $('#exportXLSX').on('click', function () {
+    // Show Loading
+    btn.html('<i class="fas fa-spinner fa-spin"></i> Generuji...');
+    btn.addClass('disabled').prop('disabled', true);
+
     const params = buildParams(table);
-    window.location.href = '/api/devicedata/xlsx?' + params.toString();
+    window.location.href = `/api/devicedata/${format}?` + params.toString();
+
+    // Reset button after short delay (to allow double click prevention but restore UI)
+    setTimeout(function () {
+      btn.html(originalContent);
+      btn.removeClass('disabled').prop('disabled', false);
+    }, 4000);
   });
 
   function buildParams(dt) {

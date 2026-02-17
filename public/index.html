@@ -17,15 +17,7 @@
       <img src="logo-light.png" alt="Logo" id="logo" />
       <h1>RCMS RCOM / AuditLog</h1>
     </div>
-    <div class="datasource-switch"
-      style="display: flex; align-items: center; gap: 8px; margin-right: 20px; font-weight: bold;">
-      <span>Hlavní server</span>
-      <label class="switch" aria-label="Přepnout zdroj dat">
-        <input type="checkbox" id="datasourceToggle">
-        <span class="slider" style="background-color: #2196F3;"></span>
-      </label>
-      <span>Záložní server</span>
-    </div>
+
     <div class="theme-switch">
       <i class="fas fa-sun" aria-hidden="true"></i>
       <label class="switch" aria-label="Přepnout téma">
@@ -102,12 +94,24 @@
         </div>
 
         <div class="right-controls" style="display: flex; gap: 10px; align-items: center;">
-          <div class="auto-refresh" title="Auto-refresh (30s)" style="display: flex; align-items: center; gap: 5px;">
-            <span>Auto:</span>
-            <label class="switch">
+          <div class="auto-refresh" title="Auto-refresh (30s)">
+            <i id="autoRefreshIcon" class="fas fa-sync"></i>
+            <span class="small ms-1">VYP</span>
+            <label class="switch mx-1">
               <input type="checkbox" id="autoRefreshToggle">
               <span class="slider round"></span>
             </label>
+            <span class="small">AUTO</span>
+          </div>
+
+          <div class="datasource-control" title="Přepnout zdroj dat (Alt+S)">
+            <i id="dbIconSwitch" class="fas fa-database"></i>
+            <span class="small ms-1">MAIN</span>
+            <label class="switch mx-1">
+              <input type="checkbox" id="datasourceToggle">
+              <span class="slider round"></span>
+            </label>
+            <span class="small">BACKUP</span>
           </div>
 
           <div class="page-length-group" style="display: flex; align-items: center; gap: 5px;">
@@ -162,10 +166,19 @@
   </main>
 
   <footer>
-    &copy; <span id="currentYear"></span> ELVAC SOLUTIONS s.r.o.
-    <div class="keyboard-shortcuts">
-      <strong>Klávesové zkratky:</strong> <kbd>Alt + M</kbd> – přepnutí tématu
-      <button id="helpBtn" aria-label="Nápověda">?</button>
+    <div class="status-bar">
+      <div class="status-left">
+        <span id="dbStatus" class="status-item"><i class="fas fa-database"></i> <span id="dbStatusText">Hlavní
+            DB</span></span>
+        <span class="status-item"><i class="fas fa-clock"></i> <span id="lastUpdate">Nikdy</span></span>
+      </div>
+      <div class="status-right">
+        <span class="status-item">Záznamů: <span id="rowCount">0</span></span>
+        <button id="helpBtn" class="btn-link"><i class="fas fa-question-circle"></i> Nápověda</button>
+      </div>
+    </div>
+    <div class="copyright">
+      &copy; <span id="currentYear"></span> ELVAC SOLUTIONS s.r.o.
     </div>
   </footer>
 
@@ -174,6 +187,7 @@
       <h2 id="helpTitle">Nápověda a klávesové zkratky</h2>
       <button id="closeHelp" aria-label="Zavřít nápovědu">&times;</button>
       <ul>
+        <li><kbd>Alt + F1</kbd> – Nápověda</li>
         <li><kbd>Alt + M</kbd> – přepnutí světlého/tmavého režimu</li>
         <li><kbd>Alt + S</kbd> – přepnutí zdroje dat (Hlavní/Záložní)</li>
         <li><kbd>Alt + C</kbd> – zrušení všech filtrů</li>
