@@ -570,6 +570,46 @@ body.dark-mode table.dataTable tbody tr.new-record {
   margin-right: 5px;
 }
 
+/* Collapsible Header */
+.controls-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  cursor: pointer;
+  padding-bottom: 10px;
+  /* Slight separation */
+  border-bottom: 1px solid transparent;
+  /* Reserve space for border */
+  transition: border-color 0.3s;
+}
+
+.controls-header:hover {
+  color: var(--primary-color);
+}
+
+.controls-header.collapsed {
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+.toggle-icon {
+  transition: transform 0.3s ease;
+}
+
+.controls-header.collapsed .toggle-icon {
+  transform: rotate(-90deg);
+}
+
+.controls-content {
+  display: block;
+  /* animation? */
+}
+
+.controls-content.collapsed {
+  display: none;
+}
+
 /* Saved Filters & Time */
 .saved-filters-group {
   display: flex;

@@ -37,87 +37,93 @@
   </header>
 
   <div id="controls-container">
-    <div class="filters-row">
-      <!-- Saved Filters & Actions -->
-      <div class="saved-filters-group" style="display: flex; align-items: center; gap: 5px;">
-        <i class="fas fa-clock" title="Uložené filtry a čas"></i>
-        <select id="savedFiltersSelect" class="form-select" style="min-width: 200px;">
-          <option value="">-- Filtry a čas --</option>
-        </select>
-        <button id="btnSaveFilter" class="btn-icon" title="Uložit filtr"><i class="fas fa-save"></i></button>
-        <button id="btnRenameFilter" class="btn-icon" title="Přejmenovat"><i class="fas fa-edit"></i></button>
-        <button id="btnDeleteFilter" class="btn-icon" title="Smazat"><i class="fas fa-trash"></i></button>
-      </div>
-
-      <!-- Multiselects -->
-      <div class="multiselect-group" style="display: flex; gap: 5px;">
-        <div class="multiselect">
-          <button id="regionBtn" class="dropdown-btn"><i class="fas fa-globe-europe"></i> Region: Vše</button>
-          <div id="regionList" class="multiselect-dropdown"></div>
-        </div>
-        <div class="multiselect">
-          <button id="localityBtn" class="dropdown-btn"><i class="fas fa-map-marker-alt"></i> Lokalita: Vše</button>
-          <div id="localityList" class="multiselect-dropdown"></div>
-        </div>
-        <div class="multiselect">
-          <button id="typeBtn" class="dropdown-btn"><i class="fas fa-cube"></i> Typ: Vše</button>
-          <div id="typeList" class="multiselect-dropdown"></div>
-        </div>
-        <div class="multiselect">
-          <button id="propertyBtn" class="dropdown-btn"><i class="fas fa-tag"></i> Vlastnost: Vše</button>
-          <div id="propertyList" class="multiselect-dropdown"></div>
-        </div>
-      </div>
+    <div class="controls-header" id="controlsHeader">
+      <span class="title-label"><i class="fas fa-filter"></i> Filtrace a nastavení</span>
+      <i class="fas fa-chevron-down toggle-icon" id="controlsToggleIcon"></i>
     </div>
-
-    <!-- Date Inputs (manual) -->
-    <div class="filters-row" style="margin-top: 10px; display: flex; gap: 10px; align-items: center;">
-      <div class="date-group" style="display: flex; gap: 5px; align-items: center;">
-        <i class="fas fa-calendar-alt"></i>
-        <input type="date" id="dateFrom" class="form-input">
-        <input type="time" id="timeFrom" class="form-input">
-        <span>-</span>
-        <input type="date" id="dateTo" class="form-input">
-        <input type="time" id="timeTo" class="form-input">
-      </div>
-    </div>
-
-    <div class="filters-row actions-row"
-      style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
-      <div class="search-box-wrapper" style="display: flex; gap: 10px; align-items: center;">
-        <div class="search-box">
-          <i class="fas fa-search search-icon"></i>
-          <input type="text" id="globalSearch" placeholder="Hledat..." class="form-input">
-          <button id="clearSearch" class="btn-icon-clear" title="Vymazat hledání" style="display:none;"><i
-              class="fas fa-times"></i></button>
-        </div>
-        <button id="btnResetAll" class="btn-clear" title="Zrušit všechny filtry (Alt+C)">
-          <i class="fas fa-undo"></i> Zrušit filtry
-        </button>
-      </div>
-
-      <div class="right-controls" style="display: flex; gap: 10px; align-items: center;">
-        <div class="auto-refresh" title="Auto-refresh (30s)" style="display: flex; align-items: center; gap: 5px;">
-          <span>Auto:</span>
-          <label class="switch">
-            <input type="checkbox" id="autoRefreshToggle">
-            <span class="slider round"></span>
-          </label>
-        </div>
-
-        <div class="page-length-group" style="display: flex; align-items: center; gap: 5px;">
-          <i class="fas fa-list-ol"></i>
-          <select id="pageLengthSelect" class="form-select">
-            <option value="10" selected>10 řádků</option>
-            <option value="15">15 řádků</option>
-            <option value="25">25 řádků</option>
-            <option value="50">50 řádků</option>
-            <option value="100">100 řádků</option>
+    <div id="controlsContent" class="controls-content">
+      <div class="filters-row">
+        <!-- Saved Filters & Actions -->
+        <div class="saved-filters-group" style="display: flex; align-items: center; gap: 5px;">
+          <i class="fas fa-clock" title="Uložené filtry a čas"></i>
+          <select id="savedFiltersSelect" class="form-select" style="min-width: 200px;">
+            <option value="">-- Filtry a čas --</option>
           </select>
+          <button id="btnSaveFilter" class="btn-icon" title="Uložit filtr"><i class="fas fa-save"></i></button>
+          <button id="btnRenameFilter" class="btn-icon" title="Přejmenovat"><i class="fas fa-edit"></i></button>
+          <button id="btnDeleteFilter" class="btn-icon" title="Smazat"><i class="fas fa-trash"></i></button>
         </div>
 
-        <button id="exportCSV" class="btn-icon" title="CSV"><i class="fas fa-file-csv"></i> CSV</button>
-        <button id="exportXLSX" class="btn-icon" title="XLSX"><i class="fas fa-file-excel"></i> Excel</button>
+        <!-- Multiselects -->
+        <div class="multiselect-group" style="display: flex; gap: 5px;">
+          <div class="multiselect">
+            <button id="regionBtn" class="dropdown-btn"><i class="fas fa-globe-europe"></i> Region: Vše</button>
+            <div id="regionList" class="multiselect-dropdown"></div>
+          </div>
+          <div class="multiselect">
+            <button id="localityBtn" class="dropdown-btn"><i class="fas fa-map-marker-alt"></i> Lokalita: Vše</button>
+            <div id="localityList" class="multiselect-dropdown"></div>
+          </div>
+          <div class="multiselect">
+            <button id="typeBtn" class="dropdown-btn"><i class="fas fa-cube"></i> Typ: Vše</button>
+            <div id="typeList" class="multiselect-dropdown"></div>
+          </div>
+          <div class="multiselect">
+            <button id="propertyBtn" class="dropdown-btn"><i class="fas fa-tag"></i> Vlastnost: Vše</button>
+            <div id="propertyList" class="multiselect-dropdown"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Date Inputs (manual) -->
+      <div class="filters-row" style="margin-top: 10px; display: flex; gap: 10px; align-items: center;">
+        <div class="date-group" style="display: flex; gap: 5px; align-items: center;">
+          <i class="fas fa-calendar-alt"></i>
+          <input type="date" id="dateFrom" class="form-input">
+          <input type="time" id="timeFrom" class="form-input">
+          <span>-</span>
+          <input type="date" id="dateTo" class="form-input">
+          <input type="time" id="timeTo" class="form-input">
+        </div>
+      </div>
+
+      <div class="filters-row actions-row"
+        style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
+        <div class="search-box-wrapper" style="display: flex; gap: 10px; align-items: center;">
+          <div class="search-box">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="globalSearch" placeholder="Hledat..." class="form-input">
+            <button id="clearSearch" class="btn-icon-clear" title="Vymazat hledání" style="display:none;"><i
+                class="fas fa-times"></i></button>
+          </div>
+          <button id="btnResetAll" class="btn-clear" title="Zrušit všechny filtry (Alt+C)">
+            <i class="fas fa-undo"></i> Zrušit filtry
+          </button>
+        </div>
+
+        <div class="right-controls" style="display: flex; gap: 10px; align-items: center;">
+          <div class="auto-refresh" title="Auto-refresh (30s)" style="display: flex; align-items: center; gap: 5px;">
+            <span>Auto:</span>
+            <label class="switch">
+              <input type="checkbox" id="autoRefreshToggle">
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <div class="page-length-group" style="display: flex; align-items: center; gap: 5px;">
+            <i class="fas fa-list-ol"></i>
+            <select id="pageLengthSelect" class="form-select">
+              <option value="10" selected>10 řádků</option>
+              <option value="15">15 řádků</option>
+              <option value="25">25 řádků</option>
+              <option value="50">50 řádků</option>
+              <option value="100">100 řádků</option>
+            </select>
+          </div>
+
+          <button id="exportCSV" class="btn-icon" title="CSV"><i class="fas fa-file-csv"></i> CSV</button>
+          <button id="exportXLSX" class="btn-icon" title="XLSX"><i class="fas fa-file-excel"></i> Excel</button>
+        </div>
       </div>
     </div>
   </div>
@@ -171,6 +177,7 @@
         <li><kbd>Alt + M</kbd> – přepnutí světlého/tmavého režimu</li>
         <li><kbd>Alt + S</kbd> – přepnutí zdroje dat (Hlavní/Záložní)</li>
         <li><kbd>Alt + C</kbd> – zrušení všech filtrů</li>
+        <li><kbd>Alt + P</kbd> – přepnutí panelu filtrů (sbalit/rozbalit)</li>
         <li><kbd>Esc</kbd> – zavření nápovědy</li>
       </ul>
     </div>

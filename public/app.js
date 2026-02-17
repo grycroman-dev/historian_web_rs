@@ -50,6 +50,26 @@ $(document).ready(function () {
       e.preventDefault();
       if (datasourceToggle) datasourceToggle.click();
     }
+    // Přepnout panel filtrů: Alt+P
+    if (e.altKey && (e.key === 'p' || e.key === 'P')) {
+      e.preventDefault();
+      const header = document.getElementById('controlsHeader');
+      const content = document.getElementById('controlsContent');
+      if (header && content) {
+        header.classList.toggle('collapsed');
+        content.classList.toggle('collapsed');
+        const isCollapsed = content.classList.contains('collapsed');
+        localStorage.setItem('controls_collapsed', isCollapsed);
+
+        if (!isCollapsed) {
+          // Focus first element when opening
+          setTimeout(() => {
+            const firstInput = document.getElementById('savedFiltersSelect');
+            if (firstInput) firstInput.focus();
+          }, 50);
+        }
+      }
+    }
   });
 
   // --- 1.5 Data Source Logic ---
@@ -84,6 +104,25 @@ $(document).ready(function () {
       if (typeof table !== 'undefined') {
         table.ajax.reload();
       }
+    });
+  }
+
+  // --- 1.6 Collapsible Controls Logic ---
+  const controlsHeader = document.getElementById('controlsHeader');
+  const controlsContent = document.getElementById('controlsContent');
+
+  // Load saved state
+  const isControlsCollapsed = localStorage.getItem('controls_collapsed') === 'true';
+  if (isControlsCollapsed) {
+    if (controlsHeader) controlsHeader.classList.add('collapsed');
+    if (controlsContent) controlsContent.classList.add('collapsed');
+  }
+
+  if (controlsHeader && controlsContent) {
+    controlsHeader.addEventListener('click', () => {
+      controlsContent.classList.toggle('collapsed');
+      controlsHeader.classList.toggle('collapsed');
+      localStorage.setItem('controls_collapsed', controlsContent.classList.contains('collapsed'));
     });
   }
 
