@@ -74,6 +74,16 @@ app.get('/api/filters', async (req, res) => {
 });
 
 // Načtení dat (DeviceDataView)
+app.get('/api/version', (req, res) => {
+  try {
+    const packageJson = require('./package.json');
+    res.json({ version: packageJson.version });
+  } catch (err) {
+    console.error('Chyba při načítání verze:', err);
+    res.status(500).json({ error: 'Chyba při načítání verze' });
+  }
+});
+
 app.get('/api/devicedata', async (req, res) => {
   try {
     const dataSource = req.query.dataSource || 'main'; // 'main' or 'backup'

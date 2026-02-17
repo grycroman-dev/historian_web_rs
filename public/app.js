@@ -800,6 +800,15 @@ $(document).ready(function () {
   }
 
   $('#currentYear').text(new Date().getFullYear());
+
+  // Načtení verze aplikace
+  $.get('/api/version', function (data) {
+    if (data && data.version) {
+      $('#appVersion').text(data.version);
+    }
+  });
+
+  // --- 4. Filter Population Logic ---
   // --- 4. Filter Population Logic ---
   function createCheckboxList(containerId, items) {
     const container = $(containerId);
