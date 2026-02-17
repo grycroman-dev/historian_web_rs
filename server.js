@@ -60,12 +60,15 @@ app.get('/api/filters', async (req, res) => {
     const localities = await pool.request().query('SELECT Name FROM dbo.DeviceLocality ORDER BY Name');
     const types = await pool.request().query('SELECT Name FROM dbo.DeviceType ORDER BY Name');
     const properties = await pool.request().query('SELECT Name FROM dbo.DeviceProperty ORDER BY Name');
+    // Frequency – stored directly in dbo.Device, no dedicated dimension table
+    const frequencies = await pool.request().query("SELECT DISTINCT Frequency AS Name FROM dbo.Device WHERE Frequency IS NOT NULL AND Frequency != '' ORDER BY Frequency");
 
     res.json({
       regions: regions.recordset.map(r => r.Name),
       localities: localities.recordset.map(l => l.Name),
       types: types.recordset.map(t => t.Name),
-      properties: properties.recordset.map(p => p.Name)
+      properties: properties.recordset.map(p => p.Name),
+      frequencies: frequencies.recordset.map(f => f.Name)
     });
   } catch (err) {
     console.error('Chyba při načítání filtrů:', err);
@@ -150,7 +153,10 @@ app.get('/api/devicedata', async (req, res) => {
     addFilter(requestParams, whereConditions, 'region', 'DeviceRegion', req.query.region || req.query['region[]']);
     addFilter(requestParams, whereConditions, 'locality', 'DeviceLocality', req.query.locality || req.query['locality[]']);
     addFilter(requestParams, whereConditions, 'type', 'DeviceType', req.query.type || req.query['type[]']);
+    addFilter(requestParams, whereConditions, 'type', 'DeviceType', req.query.type || req.query['type[]']);
     addFilter(requestParams, whereConditions, 'property', 'DeviceProperty', req.query.property || req.query['property[]']);
+    // Added Frequency filter
+    addFilter(requestParams, whereConditions, 'frequency', 'Frequency', req.query.frequency || req.query['frequency[]']);
 
     // Filtry data a času
     if (req.query.dateFrom) {
@@ -258,7 +264,10 @@ app.get('/api/devicedata/csv', async (req, res) => {
     addFilter(requestParams, whereConditions, 'region', 'DeviceRegion', req.query.region || req.query['region[]']);
     addFilter(requestParams, whereConditions, 'locality', 'DeviceLocality', req.query.locality || req.query['locality[]']);
     addFilter(requestParams, whereConditions, 'type', 'DeviceType', req.query.type || req.query['type[]']);
+    addFilter(requestParams, whereConditions, 'type', 'DeviceType', req.query.type || req.query['type[]']);
     addFilter(requestParams, whereConditions, 'property', 'DeviceProperty', req.query.property || req.query['property[]']);
+    // Added Frequency filter
+    addFilter(requestParams, whereConditions, 'frequency', 'Frequency', req.query.frequency || req.query['frequency[]']);
 
     if (req.query.dateFrom) { requestParams.input('dateFrom', sql.Date, req.query.dateFrom); whereConditions.push('CAST(ModifiedOn AS DATE) >= @dateFrom'); }
     if (req.query.dateTo) { requestParams.input('dateTo', sql.Date, req.query.dateTo); whereConditions.push('CAST(ModifiedOn AS DATE) <= @dateTo'); }
@@ -352,7 +361,10 @@ app.get('/api/devicedata/xlsx', async (req, res) => {
     addFilter(requestParams, whereConditions, 'region', 'DeviceRegion', req.query.region || req.query['region[]']);
     addFilter(requestParams, whereConditions, 'locality', 'DeviceLocality', req.query.locality || req.query['locality[]']);
     addFilter(requestParams, whereConditions, 'type', 'DeviceType', req.query.type || req.query['type[]']);
+    addFilter(requestParams, whereConditions, 'type', 'DeviceType', req.query.type || req.query['type[]']);
     addFilter(requestParams, whereConditions, 'property', 'DeviceProperty', req.query.property || req.query['property[]']);
+    // Added Frequency filter
+    addFilter(requestParams, whereConditions, 'frequency', 'Frequency', req.query.frequency || req.query['frequency[]']);
 
     if (req.query.dateFrom) { requestParams.input('dateFrom', sql.Date, req.query.dateFrom); whereConditions.push('CAST(ModifiedOn AS DATE) >= @dateFrom'); }
     if (req.query.dateTo) { requestParams.input('dateTo', sql.Date, req.query.dateTo); whereConditions.push('CAST(ModifiedOn AS DATE) <= @dateTo'); }

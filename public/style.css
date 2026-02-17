@@ -484,6 +484,12 @@ body.dark-mode #closeHelp:hover {
   color: #fff;
 }
 
+body.dark-mode kbd {
+  background: #444;
+  color: #e0e0e0;
+  border: 1px solid #555;
+}
+
 
 body.dark-mode table.dataTable th,
 body.dark-mode table.dataTable td {

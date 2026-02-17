@@ -53,6 +53,7 @@ $(document).ready(function () {
     }
     // Zrušit filtry: Alt+C
     if (e.altKey && (e.key === 'c' || e.key === 'C')) {
+      e.preventDefault();
       $('#btnResetAll').click();
     }
     // Přepnout zdroj dat: Alt+S
@@ -100,12 +101,6 @@ $(document).ready(function () {
       }, 50);
     }
 
-    // Auto-Refresh Toggle: Alt+A
-    if (e.altKey && (e.key === 'a' || e.key === 'A')) {
-      e.preventDefault();
-      $('#autoRefreshToggle').click();
-    }
-
     // Fokus na hledání: Alt+H
     if (e.altKey && (e.key === 'h' || e.key === 'H')) {
       e.preventDefault();
@@ -116,7 +111,7 @@ $(document).ready(function () {
       }, 50);
     }
 
-    // Auto-refresh: Alt+A
+    // Auto-Refresh Toggle: Alt+A
     if (e.altKey && (e.key === 'a' || e.key === 'A')) {
       e.preventDefault();
       ensurePanelExpanded();
@@ -396,6 +391,7 @@ $(document).ready(function () {
         };
         setCheckboxes('#regionList', f.region);
         setCheckboxes('#localityList', f.locality);
+        setCheckboxes('#frequencyList', f.frequency); // Added
         setCheckboxes('#typeList', f.type);
         setCheckboxes('#propertyList', f.property);
 
@@ -417,7 +413,7 @@ $(document).ready(function () {
         }
 
         // Update Button Texts
-        ['#region', '#locality', '#type', '#property'].forEach(id => {
+        ['#region', '#locality', '#frequency', '#type', '#property'].forEach(id => {
           // Trigger change event to update button text
           $(`${id}List`).trigger('change', 'input[type="checkbox"]');
 
@@ -444,6 +440,7 @@ $(document).ready(function () {
     const currentFilters = {
       region: getSelectedValues('#regionList'),
       locality: getSelectedValues('#localityList'),
+      frequency: getSelectedValues('#frequencyList'), // Added
       type: getSelectedValues('#typeList'),
       property: getSelectedValues('#propertyList'),
       dateFrom: $('#dateFrom').val(),
@@ -547,6 +544,7 @@ $(document).ready(function () {
 
   setupMultiselect('#regionBtn', '#regionList', 'Region', '<i class="fas fa-globe-europe"></i>');
   setupMultiselect('#localityBtn', '#localityList', 'Lokalita', '<i class="fas fa-map-marker-alt"></i>');
+  setupMultiselect('#frequencyBtn', '#frequencyList', 'Frekvence', '<i class="fas fa-wave-square"></i>'); // Added
   setupMultiselect('#typeBtn', '#typeList', 'Typ', '<i class="fas fa-cube"></i>');
   setupMultiselect('#propertyBtn', '#propertyList', 'Vlastnost', '<i class="fas fa-tag"></i>');
 
@@ -583,6 +581,7 @@ $(document).ready(function () {
         // Multi-select filtry (posíláme pole)
         d.region = getSelectedValues('#regionList');
         d.locality = getSelectedValues('#localityList');
+        d.frequency = getSelectedValues('#frequencyList'); // Added
         d.type = getSelectedValues('#typeList');
         d.property = getSelectedValues('#propertyList');
 
@@ -782,6 +781,7 @@ $(document).ready(function () {
     // Reset textů tlačítek
     $('#regionBtn').html('<i class="fas fa-globe-europe"></i> Region: Vše');
     $('#localityBtn').html('<i class="fas fa-map-marker-alt"></i> Lokalita: Vše');
+    $('#frequencyBtn').html('<i class="fas fa-wave-square"></i> Frekvence: Vše'); // Added
     $('#typeBtn').html('<i class="fas fa-cube"></i> Typ: Vše');
     $('#propertyBtn').html('<i class="fas fa-tag"></i> Vlastnost: Vše');
 
@@ -796,7 +796,8 @@ $(document).ready(function () {
     toggleClearSearchBtn();
     $('.filter-input').val('');
 
-    refreshTable();
+    // Force full reload with reset to page 1
+    table.ajax.reload(null, true);
   });
 
   $('#exportCSV, #exportXLSX').on('click', function () {
@@ -830,6 +831,9 @@ $(document).ready(function () {
 
     const localities = getSelectedValues('#localityList');
     localities.forEach(l => params.append('locality', l));
+
+    const frequencies = getSelectedValues('#frequencyList'); // Added
+    frequencies.forEach(f => params.append('frequency', f));
 
     const types = getSelectedValues('#typeList');
     types.forEach(t => params.append('type', t));
@@ -870,6 +874,7 @@ $(document).ready(function () {
   $.getJSON('/api/filters', function (data) {
     if (data.regions) createCheckboxList('#regionList', data.regions);
     if (data.localities) createCheckboxList('#localityList', data.localities);
+    if (data.frequencies) createCheckboxList('#frequencyList', data.frequencies); // Added
     if (data.types) createCheckboxList('#typeList', data.types);
     if (data.properties) createCheckboxList('#propertyList', data.properties);
   });
