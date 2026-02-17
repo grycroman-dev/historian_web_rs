@@ -1,9 +1,13 @@
 const express = require('express');
 const path = require('path');
+const https = require('https');
+const http = require('http');
+const fs = require('fs');
 const { sql, getPool } = require('./config/db');
 
 const app = express();
-const PORT = 3001;
+const HTTP_PORT = 3001;
+const HTTPS_PORT = 3443;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -416,4 +420,21 @@ app.get('/api/devicedata/xlsx', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log(`Server běží na http://localhost:${PORT}`));
+// HTTPS Configuration
+const httpsOptions = {
+  pfx: fs.readFileSync(path.join(__dirname, 'config', 'server.pfx')),
+  passphrase: 'historian'
+};
+
+// Start HTTPS Server
+https.createServer(httpsOptions, app).listen(HTTPS_PORT, () => {
+  console.log(`HTTPS Server running on https://localhost:${HTTPS_PORT}`);
+});
+
+// Start HTTP Server (Redirect to HTTPS)
+http.createServer((req, res) => {
+  res.writeHead(301, { "Location": "https://" + req.headers['host'].replace(/:\d+$/, '') + ":" + HTTPS_PORT + req.url });
+  res.end();
+}).listen(HTTP_PORT, () => {
+  console.log(`HTTP Server running on http://localhost:${HTTP_PORT} (Redirects to HTTPS)`);
+});

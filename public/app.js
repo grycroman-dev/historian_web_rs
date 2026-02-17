@@ -1,6 +1,11 @@
 $(document).ready(function () {
   console.log('App init...');
 
+  // --- Configuration ---
+  const CONFIG = {
+    NEW_RECORD_HIGHLIGHT_DURATION: 5000 // ms - How long the green highlight stays
+  };
+
   // --- 1. Theme Toggle Logic ---
   const themeToggle = document.getElementById('themeToggle');
   const body = document.body;
@@ -623,6 +628,11 @@ $(document).ready(function () {
         const diff = now - recordTime;
         if (diff < 60000 && diff >= 0) {
           $(row).addClass('new-record');
+
+          // Remove highlight after configured duration
+          setTimeout(() => {
+            $(row).removeClass('new-record');
+          }, CONFIG.NEW_RECORD_HIGHLIGHT_DURATION);
         }
       }
     },
