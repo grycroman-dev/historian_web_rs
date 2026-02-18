@@ -1,5 +1,7 @@
-## 2.0.9 - 2026-02-18
 # Changelog
+
+## 2.0.9 - 2026-02-18
+- Přidána možnost měnit velikost rozbalovacích seznamů filtrů (drag & drop resize za pravý dolní roh)
 
 ## 2.0.8 - 2026-02-18
 - Implementováno fulltext vyhledávání uvnitř multiselect filtrů (umožňuje rychle najít např. konkrétní zařízení)
