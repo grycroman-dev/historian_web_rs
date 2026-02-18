@@ -1,5 +1,8 @@
-## 2.0.7 - 2026-02-18
 # Changelog
+
+## 2.0.7 - 2026-02-18
+- Přidán filtr Zařízení (multiselect) do UI
+- Doplněna podpora filtrování podle zařízení `device` do API a exportů (CSV, XLSX)
 
 ## 2.0.6 - 2026-02-18
 - Přidány sloupce OldValueReal / NewValueReal (numerická konverze hodnot v SQL pohledu)
