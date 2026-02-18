@@ -1,4 +1,12 @@
+## 2.0.12 - 2026-02-18
 # Changelog
+
+## 2.0.11 - 2026-02-18
+- Oprava vyhledávání v číselných sloupcích (Frekvence, REAL hodnoty) pomocí SQL CAST a NVARCHAR(MAX).
+- Sjednocení a oprava exportu do Excelu (doplněn chybějící filtr Zařízení).
+- Oprava řazení tabulky při kliknutí do vyhledávacího pole v záhlaví (orderCellsTop).
+- Stabilizace vyhledávání nad sloupci při skrytých sloupcích (vazba na ID místo indexu).
+- Zpřesnění vizuálního zvýraznění (mark.js) hledaného textu pouze v příslušných sloupcích.
 
 ## 2.0.10 - 2026-02-18
 - Oprava chyby v exportu do Excelu (`/api/devicedata/xlsx`), kde se omylem spouštěla logika pro CSV generování (odstraněn duplicitní, chybný endpoint).

@@ -1,0 +1,1 @@
+Id,ModifiedOn,Name,DeviceRegion,DeviceLocality,Frequency,DeviceType,DeviceProperty,OldValue,NewValue,OldValueReal,NewValueReal,DeviceId

@@ -607,9 +607,16 @@ $(document).ready(function () {
         // Search input
         d.search.value = $('#globalSearch').val();
 
-        // Sloupcové filtry (inputs v thead)
-        $('.filter-input').each(function (i) {
-          d['col' + i] = $(this).val();
+        // Sloupcové filtry (mapování podle ID pro stabilitu při skrytých sloupcích)
+        $('.filter-input').each(function () {
+          const val = $(this).val();
+          if (val) {
+            const id = $(this).attr('id') || '';
+            const match = id.match(/filter-col-(\d+)/);
+            if (match) {
+              d['col' + match[1]] = val;
+            }
+          }
         });
       }
     },
@@ -649,6 +656,7 @@ $(document).ready(function () {
       }
     ],
     order: [[0, 'desc']],
+    orderCellsTop: true,
     dom: 'rt<"bottom"ip><"clear">',
     language: {
       "decimal": "",
@@ -722,7 +730,13 @@ $(document).ready(function () {
 
       $('.filter-input').each(function () {
         const val = $(this).val();
-        if (val) body.mark(val);
+        const id = $(this).attr('id') || '';
+        const match = id.match(/filter-col-(\d+)/);
+        if (val && match) {
+          const colIdx = parseInt(match[1]);
+          // Zvýraznit pouze v daném sloupci pro přehlednost
+          api.column(colIdx).nodes().to$().mark(val);
+        }
       });
 
       // Update Status Bar
@@ -798,8 +812,8 @@ $(document).ready(function () {
     }
   });
 
-  // Zamezení řazení při kliknutí do filtru
-  $('thead input.filter-input').on('click', function (e) {
+  // Zamezení řazení při kliknutí do filtru (delegováno pro stabilitu)
+  $('#recordsTable thead').on('click mousedown', 'input.filter-input', function (e) {
     e.stopPropagation();
   });
 
@@ -944,9 +958,15 @@ $(document).ready(function () {
     const order = dt.order()[0];
     params.append('orderCol', order[0]);
     params.append('orderDir', order[1]);
-    $('.filter-input').each(function (i) {
+    $('.filter-input').each(function () {
       const val = $(this).val();
-      if (val) params.append('col' + i, val);
+      if (val) {
+        const id = $(this).attr('id') || '';
+        const match = id.match(/filter-col-(\d+)/);
+        if (match) {
+          params.append('col' + match[1], val);
+        }
+      }
     });
     return params;
   }

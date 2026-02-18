@@ -30,17 +30,18 @@ function escapeLike(str) {
 
 // Funkce pro přidání filtru (single nebo multi)
 function addFilter(requestParams, whereConditions, paramName, dbColumn, values) {
-  if (!values) return;
+  if (!values || values === 'false' || values === 'undefined') return;
   const vals = Array.isArray(values) ? values : [values];
-  if (vals.length === 0) return;
+  const cleanedVals = vals.filter(v => v !== null && v !== undefined && v !== '' && v !== 'false' && v !== 'undefined');
+  if (cleanedVals.length === 0) return;
 
-  if (vals.length === 1) {
-    requestParams.input(paramName, sql.NVarChar, vals[0]);
+  if (cleanedVals.length === 1) {
+    requestParams.input(paramName, sql.NVarChar, cleanedVals[0]);
     whereConditions.push(`${dbColumn} = @${paramName}`);
   } else {
     // Multi-select: IN (@p_0, @p_1, ...)
     const paramNames = [];
-    vals.forEach((val, index) => {
+    cleanedVals.forEach((val, index) => {
       const pName = `${paramName}_${index}`;
       requestParams.input(pName, sql.NVarChar, val);
       paramNames.push(`@${pName}`);
@@ -184,7 +185,7 @@ app.get('/api/devicedata', async (req, res) => {
     if (searchValue) {
       const escapedSearch = escapeSqlString(escapeLike(searchValue));
       whereConditions.push(`(
-        CAST(Id AS NVARCHAR) LIKE N'%${escapedSearch}%' OR
+        CAST(Id AS NVARCHAR(MAX)) LIKE N'%${escapedSearch}%' OR
         CONVERT(VARCHAR(23), ModifiedOn, 121) LIKE N'%${escapedSearch}%' OR
         Name LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
         DeviceRegion LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
@@ -202,7 +203,7 @@ app.get('/api/devicedata', async (req, res) => {
       if (val && val.trim() !== '') {
         const colName = columns[i];
         const escapedVal = escapeSqlString(escapeLike(val));
-        if (colName === 'Id') whereConditions.push(`CAST(${colName} AS NVARCHAR) LIKE N'%${escapedVal}%'`);
+        if (colName === 'Id' || colName === 'Frequency' || colName === 'OldValueReal' || colName === 'NewValueReal') whereConditions.push(`CAST(${colName} AS NVARCHAR(MAX)) LIKE N'%${escapedVal}%' COLLATE Latin1_General_CI_AI`);
         else if (colName === 'ModifiedOn') whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapedVal}%'`);
         else whereConditions.push(`${colName} LIKE N'%${escapedVal}%' COLLATE Latin1_General_CI_AI`);
       }
@@ -284,7 +285,7 @@ app.get('/api/devicedata/csv', async (req, res) => {
     if (searchValue) {
       const escapedSearch = escapeSqlString(escapeLike(searchValue));
       whereConditions.push(`(
-        CAST(Id AS NVARCHAR) LIKE N'%${escapedSearch}%' OR
+        CAST(Id AS NVARCHAR(MAX)) LIKE N'%${escapedSearch}%' OR
         CONVERT(VARCHAR(23), ModifiedOn, 121) LIKE N'%${escapedSearch}%' OR
         Name LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
         DeviceRegion LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
@@ -302,7 +303,7 @@ app.get('/api/devicedata/csv', async (req, res) => {
       if (val && val.trim() !== '') {
         const colName = columns[i];
         const escapedVal = escapeSqlString(escapeLike(val));
-        if (colName === 'Id') whereConditions.push(`CAST(${colName} AS NVARCHAR) LIKE N'%${escapedVal}%'`);
+        if (colName === 'Id' || colName === 'Frequency' || colName === 'OldValueReal' || colName === 'NewValueReal') whereConditions.push(`CAST(${colName} AS NVARCHAR(MAX)) LIKE N'%${escapedVal}%' COLLATE Latin1_General_CI_AI`);
         else if (colName === 'ModifiedOn') whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapedVal}%'`);
         else whereConditions.push(`${colName} LIKE N'%${escapedVal}%' COLLATE Latin1_General_CI_AI`);
       }
@@ -376,6 +377,8 @@ app.get('/api/devicedata/xlsx', async (req, res) => {
     addFilter(requestParams, whereConditions, 'property', 'DeviceProperty', req.query.property || req.query['property[]']);
     // Added Frequency filter
     addFilter(requestParams, whereConditions, 'frequency', 'Frequency', req.query.frequency || req.query['frequency[]']);
+    // Added Device filter
+    addFilter(requestParams, whereConditions, 'device', 'Name', req.query.device || req.query['device[]']);
 
     if (req.query.dateFrom) { requestParams.input('dateFrom', sql.Date, req.query.dateFrom); whereConditions.push('CAST(ModifiedOn AS DATE) >= @dateFrom'); }
     if (req.query.dateTo) { requestParams.input('dateTo', sql.Date, req.query.dateTo); whereConditions.push('CAST(ModifiedOn AS DATE) <= @dateTo'); }
@@ -385,7 +388,7 @@ app.get('/api/devicedata/xlsx', async (req, res) => {
     if (searchValue) {
       const escapedSearch = escapeSqlString(escapeLike(searchValue));
       whereConditions.push(`(
-        CAST(Id AS NVARCHAR) LIKE N'%${escapedSearch}%' OR
+        CAST(Id AS NVARCHAR(MAX)) LIKE N'%${escapedSearch}%' OR
         CONVERT(VARCHAR(23), ModifiedOn, 121) LIKE N'%${escapedSearch}%' OR
         Name LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
         DeviceRegion LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
@@ -403,7 +406,7 @@ app.get('/api/devicedata/xlsx', async (req, res) => {
       if (val && val.trim() !== '') {
         const colName = columns[i];
         const escapedVal = escapeSqlString(escapeLike(val));
-        if (colName === 'Id') whereConditions.push(`CAST(${colName} AS NVARCHAR) LIKE N'%${escapedVal}%'`);
+        if (colName === 'Id' || colName === 'Frequency' || colName === 'OldValueReal' || colName === 'NewValueReal') whereConditions.push(`CAST(${colName} AS NVARCHAR(MAX)) LIKE N'%${escapedVal}%' COLLATE Latin1_General_CI_AI`);
         else if (colName === 'ModifiedOn') whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapedVal}%'`);
         else whereConditions.push(`${colName} LIKE N'%${escapedVal}%' COLLATE Latin1_General_CI_AI`);
       }
