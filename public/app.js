@@ -132,6 +132,24 @@ $(document).ready(function () {
         $('#colVisDropdown').toggleClass('show');
       }, 50);
     }
+
+    // Export: Alt+E
+    if (e.altKey && (e.key === 'e' || e.key === 'E')) {
+      e.preventDefault();
+      ensurePanelExpanded();
+      setTimeout(() => {
+        const btn = $('#btnExport');
+        const dropdown = $('#exportDropdown');
+
+        if (!dropdown.hasClass('show')) {
+          btn.trigger('click');
+        }
+
+        // Focus the first item
+        dropdown.find('.export-item').first().focus();
+      }, 50);
+    }
+
   });
 
   // --- 1.5 Data Source Logic ---
@@ -810,6 +828,9 @@ $(document).ready(function () {
     if (!$(e.target).closest('.col-vis-wrapper').length) {
       $('#colVisDropdown').removeClass('show');
     }
+    if (!$(e.target).closest('.export-wrapper').length) {
+      $('#exportDropdown').removeClass('show');
+    }
   });
 
   // Zamezení řazení při kliknutí do filtru (delegováno pro stabilitu)
@@ -906,28 +927,64 @@ $(document).ready(function () {
     table.ajax.reload(null, true);
   });
 
-  $('#exportCSV, #exportXLSX').on('click', function () {
-    const btn = $(this);
-    const originalContent = btn.html();
-    const format = btn.attr('id') === 'exportCSV' ? 'csv' : 'xlsx';
+  // Export Dropdown Toggle
+  $('#btnExport').on('click', function (e) {
+    e.stopPropagation();
+    $('#exportDropdown').toggleClass('show');
+  });
 
-    // Show Loading
+  $('.export-item').on('click', function () {
+    const id = $(this).attr('id');
+    const format = id.toLowerCase().includes('csv') ? 'csv' : 'xlsx';
+    const exportAll = id.toLowerCase().includes('all');
+
+    const btn = $('#btnExport');
+    const originalContent = btn.html();
+
+    // Show Loading in main button
     btn.html('<i class="fas fa-spinner fa-spin"></i> Generuji...');
     btn.addClass('disabled').prop('disabled', true);
+    $('#exportDropdown').removeClass('show');
 
-    const params = buildParams(table);
+    const params = buildParams(table, exportAll);
     window.location.href = `/api/devicedata/${format}?` + params.toString();
 
-    // Reset button after short delay (to allow double click prevention but restore UI)
     setTimeout(function () {
       btn.html(originalContent);
       btn.removeClass('disabled').prop('disabled', false);
     }, 4000);
   });
 
+  // Keyboard navigation for Export items
+  $('.export-item').on('keydown', function (e) {
+    const items = $('.export-item');
+    const index = items.index(this);
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      items.eq((index + 1) % items.length).focus();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      items.eq((index - 1 + items.length) % items.length).focus();
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      $(this).click();
+    } else if (e.key === 'Escape') {
+      $('#exportDropdown').removeClass('show');
+      $('#btnExport').focus();
+    }
+  });
+
+  $('#btnExport').on('keydown', function (e) {
+    if (e.key === 'ArrowDown' && $('#exportDropdown').hasClass('show')) {
+      e.preventDefault();
+      $('.export-item').first().focus();
+    }
+  });
 
 
-  function buildParams(dt) {
+
+  function buildParams(dt, exportAll = false) {
     const params = new URLSearchParams();
     params.append('dataSource', localStorage.getItem('dataSource') || 'main');
 
@@ -955,10 +1012,15 @@ $(document).ready(function () {
     const dTo = $('#dateTo').val(); if (dTo) params.append('dateTo', dTo);
     const tTo = $('#timeTo').val(); if (tTo) params.append('timeTo', tTo);
     const search = $('#globalSearch').val(); if (search) params.append('search', search);
-    params.append('orderDir', order[1]);
+
+    // Get sorting info from DataTable
+    const order = dt.order()[0];
+    if (order) {
+      params.append('orderCol', order[0]);
+      params.append('orderDir', order[1]);
+    }
 
     // Column Visibility
-    const exportAll = $('#exportAllCols').is(':checked');
     if (!exportAll) {
       const visibleCols = [];
       dt.columns().every(function (i) {

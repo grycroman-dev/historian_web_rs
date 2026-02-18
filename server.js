@@ -357,7 +357,8 @@ app.get('/api/devicedata/csv', async (req, res) => {
 
     res.header('Content-Type', 'text/csv; charset=utf-8');
     res.attachment(filename);
-    res.send(csv);
+    // Add UTF-8 BOM for Excel compatibility
+    res.send('\uFEFF' + csv);
 
   } catch (err) {
     console.error('Chyba při exportu CSV:', err);

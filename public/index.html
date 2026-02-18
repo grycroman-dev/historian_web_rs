@@ -133,12 +133,27 @@
             </select>
           </div>
 
-          <label class="export-all-label" title="Exportovat i skryté sloupce"
-            style="font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer;">
-            <input type="checkbox" id="exportAllCols" style="margin: 0;"> Celý řádek
-          </label>
-          <button id="exportCSV" class="btn-icon" title="CSV"><i class="fas fa-file-csv"></i> CSV</button>
-          <button id="exportXLSX" class="btn-icon" title="XLSX"><i class="fas fa-file-excel"></i> Excel</button>
+          <div class="export-wrapper">
+            <button id="btnExport" class="btn-icon" title="Export dat"><i class="fas fa-file-export"></i>
+              Export</button>
+            <div id="exportDropdown" class="export-dropdown">
+              <div class="export-dropdown-header">CSV Export</div>
+              <div class="export-item" id="exportCSVVisible" tabindex="0">
+                <i class="fas fa-file-csv"></i> Zobrazené sloupce
+              </div>
+              <div class="export-item" id="exportCSVAll" tabindex="0">
+                <i class="fas fa-file-csv"></i> Všechny sloupce
+              </div>
+              <div class="export-dropdown-header" style="margin-top: 10px;">Excel Export</div>
+              <div class="export-item" id="exportXLSXVisible" tabindex="0">
+                <i class="fas fa-file-excel"></i> Zobrazené sloupce
+              </div>
+              <div class="export-item" id="exportXLSXAll" tabindex="0">
+                <i class="fas fa-file-excel"></i> Všechny sloupce
+              </div>
+
+            </div>
+          </div>
 
           <div class="col-vis-wrapper">
             <button id="btnColumnVis" class="btn-icon" title="Zobrazit/skrýt sloupce (Alt+V)"><i
@@ -221,7 +236,9 @@
         <li><kbd>Alt + H</kbd> – fokus na vyhledávání</li>
         <li><kbd>Alt + A</kbd> – přepnutí automatické aktualizace</li>
         <li><kbd>Alt + V</kbd> – zobrazit/skrýt sloupce</li>
+        <li><kbd>Alt + E</kbd> – export dat</li>
         <li><kbd>Esc</kbd> – zavření nápovědy</li>
+
       </ul>
     </div>
   </div>

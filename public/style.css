@@ -408,6 +408,65 @@ table.dataTable td:nth-child(3) {
   background-color: var(--hover-color);
 }
 
+/* Export Dropdown */
+.export-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.export-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  min-width: 220px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  padding: 8px 0;
+  /* Vertical padding only, items have internal padding */
+}
+
+.export-dropdown.show {
+  display: block;
+}
+
+.export-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 15px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text-color);
+  transition: background 0.2s;
+}
+
+.export-item:hover,
+.export-item:focus {
+  background-color: var(--hover-color);
+  color: var(--primary-color);
+  outline: none;
+}
+
+
+.export-item i {
+  width: 16px;
+  text-align: center;
+}
+
+.export-dropdown-header {
+  padding: 5px 15px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: #888;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 5px;
+}
+
 .col-vis-dropdown hr {
   border: none;
   border-top: 1px solid var(--border-color);

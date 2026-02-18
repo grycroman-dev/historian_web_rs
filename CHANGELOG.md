@@ -1,5 +1,16 @@
-## 2.0.13 - 2026-02-18
+## 2.0.15 - 2026-02-18
 # Changelog
+
+## 2.0.14 - 2026-02-18
+- Oprava chyby v exportu dat (chybějící definice řazení), která blokovala stažení souboru.
+- Oprava kódování CSV exportu přidáním UTF-8 BOM (řeší špatné zobrazení češtiny v Excelu).
+- Plná podpora klávesnice v exportním menu (šipky, Enter, Space, Esc).
+- Automatický fokus na položky menu při použití zkratky Alt + E.
+
+## 2.0.13 - 2026-02-18
+- Prepracované UI exportu: Samostatné tlačítko s dropdown menu.
+- Přejmenování volby na "Všechny sloupce" (profesionálnější termín).
+- Jasné rozlišení mezi exportem zobrazených a všech sloupců pro CSV i Excel.
 
 ## 2.0.12 - 2026-02-18
 - Sjednocení názvů exportovaných souborů (včetně časového razítka).
