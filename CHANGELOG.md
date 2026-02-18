@@ -1,5 +1,8 @@
-## 2.0.8 - 2026-02-18
 # Changelog
+
+## 2.0.8 - 2026-02-18
+- Implementováno fulltext vyhledávání uvnitř multiselect filtrů (umožňuje rychle najít např. konkrétní zařízení)
+- Přesun filtru Zařízení hned za Region (Region -> Zařízení -> Lokalita)
 
 ## 2.0.7 - 2026-02-18
 - Přidán filtr Zařízení (multiselect) do UI
