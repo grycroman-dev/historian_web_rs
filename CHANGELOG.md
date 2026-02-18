@@ -1,5 +1,7 @@
-## 2.0.10 - 2026-02-18
 # Changelog
+
+## 2.0.10 - 2026-02-18
+- Oprava chyby v exportu do Excelu (`/api/devicedata/xlsx`), kde se omylem spouštěla logika pro CSV generování (odstraněn duplicitní, chybný endpoint).
 
 ## 2.0.9 - 2026-02-18
 - Přidána možnost měnit velikost rozbalovacích seznamů filtrů (drag & drop resize za pravý dolní roh)
