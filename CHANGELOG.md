@@ -1,5 +1,10 @@
-## 2.0.12 - 2026-02-18
+## 2.0.13 - 2026-02-18
 # Changelog
+
+## 2.0.12 - 2026-02-18
+- Sjednocení názvů exportovaných souborů (včetně časového razítka).
+- Export nyní respektuje viditelnost sloupců v tabulce.
+- Přidána volba "Celý řádek" pro export všech sloupců i při jejich skrytí v UI.
 
 ## 2.0.11 - 2026-02-18
 - Oprava vyhledávání v číselných sloupcích (Frekvence, REAL hodnoty) pomocí SQL CAST a NVARCHAR(MAX).

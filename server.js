@@ -317,30 +317,46 @@ app.get('/api/devicedata/csv', async (req, res) => {
       ${whereClause}
       ORDER BY ${orderColumn} ${orderDir}
     `;
+    const visibleCols = req.query.visibleCols ? req.query.visibleCols.split(',').map(Number) : null;
+    const allColsDef = [
+      { key: 'Id', label: 'Id' },
+      { key: 'ModifiedOn', label: 'Datum' },
+      { key: 'Name', label: 'Zařízení' },
+      { key: 'DeviceRegion', label: 'Region' },
+      { key: 'DeviceLocality', label: 'Lokalita' },
+      { key: 'Frequency', label: 'Frekvence' },
+      { key: 'DeviceType', label: 'Typ' },
+      { key: 'DeviceProperty', label: 'Vlastnost' },
+      { key: 'OldValue', label: 'Stará hodnota' },
+      { key: 'NewValue', label: 'Nová hodnota' },
+      { key: 'OldValueReal', label: 'Stará hod. (REAL)' },
+      { key: 'NewValueReal', label: 'Nová hod. (REAL)' }
+    ];
+
+    const exportCols = visibleCols ? allColsDef.filter((_, idx) => visibleCols.includes(idx)) : allColsDef;
+
     const result = await requestParams.query(sqlText);
     const rows = result.recordset;
 
-    let csv = 'Id;Datum;Zarizeni;Region;Lokalita;Frekvence;Typ;Vlastnost;StaraHodnota;NovaHodnota;StaraHodnotaReal;NovaHodnotaReal\n';
+    // Header
+    let csv = exportCols.map(c => c.label).join(';') + '\n';
+
+    // Rows
     rows.forEach(r => {
       const esc = s => `"${String(s || '').replace(/"/g, '""')}"`;
-      csv += [
-        r.Id,
-        r.ModifiedOn ? r.ModifiedOn.toISOString() : '',
-        esc(r.Name),
-        esc(r.DeviceRegion),
-        esc(r.DeviceLocality),
-        esc(r.Frequency),
-        esc(r.DeviceType),
-        esc(r.DeviceProperty),
-        esc(r.OldValue),
-        esc(r.NewValue),
-        r.OldValueReal != null ? r.OldValueReal : '',
-        r.NewValueReal != null ? r.NewValueReal : ''
-      ].join(';') + '\n';
+      csv += exportCols.map(c => {
+        const val = r[c.key];
+        if (c.key === 'ModifiedOn') return val ? val.toISOString().replace('T', ' ').substring(0, 19) : '';
+        if (c.key.endsWith('Real')) return val != null ? val : '';
+        return esc(val);
+      }).join(';') + '\n';
     });
 
-    res.header('Content-Type', 'text/csv');
-    res.attachment('export.csv');
+    const timestamp = new Date().toISOString().replace(/T/, '_').replace(/:/g, '-').split('.')[0];
+    const filename = `historian_export_${timestamp}.csv`;
+
+    res.header('Content-Type', 'text/csv; charset=utf-8');
+    res.attachment(filename);
     res.send(csv);
 
   } catch (err) {
@@ -420,6 +436,24 @@ app.get('/api/devicedata/xlsx', async (req, res) => {
       ${whereClause}
       ORDER BY ${orderColumn} ${orderDir}
     `;
+    const visibleCols = req.query.visibleCols ? req.query.visibleCols.split(',').map(Number) : null;
+    const allColsDef = [
+      { key: 'Id', label: 'Id' },
+      { key: 'ModifiedOn', label: 'Datum' },
+      { key: 'Name', label: 'Zařízení' },
+      { key: 'DeviceRegion', label: 'Region' },
+      { key: 'DeviceLocality', label: 'Lokalita' },
+      { key: 'Frequency', label: 'Frekvence' },
+      { key: 'DeviceType', label: 'Typ' },
+      { key: 'DeviceProperty', label: 'Vlastnost' },
+      { key: 'OldValue', label: 'Stará hodnota' },
+      { key: 'NewValue', label: 'Nová hodnota' },
+      { key: 'OldValueReal', label: 'Stará hod. (REAL)' },
+      { key: 'NewValueReal', label: 'Nová hod. (REAL)' }
+    ];
+
+    const exportCols = visibleCols ? allColsDef.filter((_, idx) => visibleCols.includes(idx)) : allColsDef;
+
     const result = await requestParams.query(sqlText);
     const rows = result.recordset;
 
@@ -427,20 +461,11 @@ app.get('/api/devicedata/xlsx', async (req, res) => {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Device Data');
 
-    worksheet.columns = [
-      { header: 'Id', key: 'Id', width: 10 },
-      { header: 'Datum', key: 'ModifiedOn', width: 20 },
-      { header: 'Zařízení', key: 'Name', width: 25 },
-      { header: 'Region', key: 'DeviceRegion', width: 15 },
-      { header: 'Lokalita', key: 'DeviceLocality', width: 15 },
-      { header: 'Frekvence', key: 'Frequency', width: 15 },
-      { header: 'Typ', key: 'DeviceType', width: 15 },
-      { header: 'Vlastnost', key: 'DeviceProperty', width: 20 },
-      { header: 'Stará hodnota', key: 'OldValue', width: 20 },
-      { header: 'Nová hodnota', key: 'NewValue', width: 20 },
-      { header: 'Stará hod. (REAL)', key: 'OldValueReal', width: 18 },
-      { header: 'Nová hod. (REAL)', key: 'NewValueReal', width: 18 }
-    ];
+    worksheet.columns = exportCols.map(c => ({
+      header: c.label,
+      key: c.key,
+      width: (c.key === 'ModifiedOn' || c.key === 'Name') ? 25 : 15
+    }));
 
     // Stylování hlavičky
     worksheet.getRow(1).font = { bold: true };
@@ -452,24 +477,18 @@ app.get('/api/devicedata/xlsx', async (req, res) => {
 
     // Přidání dat
     rows.forEach(r => {
-      worksheet.addRow({
-        Id: r.Id,
-        ModifiedOn: r.ModifiedOn,
-        Name: r.Name,
-        DeviceRegion: r.DeviceRegion,
-        DeviceLocality: r.DeviceLocality,
-        Frequency: r.Frequency,
-        DeviceType: r.DeviceType,
-        DeviceProperty: r.DeviceProperty,
-        OldValue: r.OldValue,
-        NewValue: r.NewValue,
-        OldValueReal: r.OldValueReal,
-        NewValueReal: r.NewValueReal
+      const rowData = {};
+      exportCols.forEach(c => {
+        rowData[c.key] = r[c.key];
       });
+      worksheet.addRow(rowData);
     });
 
+    const timestamp = new Date().toISOString().replace(/T/, '_').replace(/:/g, '-').split('.')[0];
+    const filename = `historian_export_${timestamp}.xlsx`;
+
     res.header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.header('Content-Disposition', 'attachment; filename="devicedata.xlsx"');
+    res.header('Content-Disposition', `attachment; filename="${filename}"`);
 
     await workbook.xlsx.write(res);
     res.end();

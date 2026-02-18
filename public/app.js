@@ -955,9 +955,20 @@ $(document).ready(function () {
     const dTo = $('#dateTo').val(); if (dTo) params.append('dateTo', dTo);
     const tTo = $('#timeTo').val(); if (tTo) params.append('timeTo', tTo);
     const search = $('#globalSearch').val(); if (search) params.append('search', search);
-    const order = dt.order()[0];
-    params.append('orderCol', order[0]);
     params.append('orderDir', order[1]);
+
+    // Column Visibility
+    const exportAll = $('#exportAllCols').is(':checked');
+    if (!exportAll) {
+      const visibleCols = [];
+      dt.columns().every(function (i) {
+        if (this.visible()) {
+          visibleCols.push(i);
+        }
+      });
+      params.append('visibleCols', visibleCols.join(','));
+    }
+
     $('.filter-input').each(function () {
       const val = $(this).val();
       if (val) {
