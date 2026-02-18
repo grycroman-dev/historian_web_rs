@@ -956,6 +956,34 @@ $(document).ready(function () {
     container.empty();
     if (!items) return;
 
+    // Search Input
+    const searchInput = $('<input>', {
+      type: 'text',
+      placeholder: 'Hledat...',
+      class: 'multiselect-search'
+    });
+
+    // Stop propagation to prevent closing dropdown
+    searchInput.on('click', function (e) {
+      e.stopPropagation();
+    });
+
+    // Filter logic
+    searchInput.on('keyup', function () {
+      const val = $(this).val().toLowerCase();
+      container.find('label').each(function () {
+        const text = $(this).text().toLowerCase();
+        // Check filtering
+        if (text.indexOf(val) > -1) {
+          $(this).removeClass('hidden');
+        } else {
+          $(this).addClass('hidden');
+        }
+      });
+    });
+
+    container.append(searchInput);
+
     items.forEach(item => {
       if (!item) return;
       const label = $('<label>');

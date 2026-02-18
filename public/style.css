@@ -216,6 +216,34 @@ input:checked+.slider:before {
   margin-right: 0.5rem;
 }
 
+/* Search input inside multiselect */
+.multiselect-search {
+  width: calc(100% - 14px);
+  /* Full width minus padding */
+  margin: 7px;
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  box-sizing: border-box;
+  font-size: 0.9rem;
+}
+
+.multiselect-search:focus {
+  border-color: var(--primary-color);
+  outline: none;
+}
+
+.multiselect-dropdown label.hidden {
+  display: none !important;
+}
+
+/* Dark mode overrides for search */
+body.dark-mode .multiselect-search {
+  background: var(--bg-color);
+  color: var(--text-color);
+  border-color: var(--border-color);
+}
+
 /* Dark mode for multiselect */
 body.dark-mode .multiselect-btn {
   background: #333;
