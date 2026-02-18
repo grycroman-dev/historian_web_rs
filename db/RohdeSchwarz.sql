@@ -113,6 +113,7 @@ GO
 CREATE TABLE [dbo].[DeviceProperty](
 	[Id] [int] IDENTITY(1,1) NOT NULL,
 	[Name] [nvarchar](250) NOT NULL,
+	[Type] [nvarchar](50) NOT NULL,
  CONSTRAINT [PK_DeviceProperty] PRIMARY KEY CLUSTERED 
 (
 	[Id] ASC
@@ -186,6 +187,14 @@ SELECT DD.[Id]
 	  ,DP.[Name] AS [DeviceProperty]      
       ,DD.[OldValue]
       ,DD.[NewValue]
+      ,CASE 
+          WHEN DP.[Type] = 'STRING' THEN CAST(0 AS REAL)
+          ELSE TRY_CAST(REPLACE(DD.[OldValue], ',', '.') AS REAL)
+       END AS [OldValueReal]
+      ,CASE 
+          WHEN DP.[Type] = 'STRING' THEN CAST(0 AS REAL)
+          ELSE TRY_CAST(REPLACE(DD.[NewValue], ',', '.') AS REAL)
+       END AS [NewValueReal]
 	  ,DD.[DeviceId]
   FROM [dbo].[DeviceData] AS DD WITH (NOLOCK)
   LEFT OUTER JOIN [dbo].[Device] AS D WITH (NOLOCK) ON D.[Id] = DD.[DeviceId]
@@ -307,7 +316,7 @@ BEGIN
 	-- Zjistuji, jestli existuje zaznam pro Property
 	SELECT @PropertyId = [Id] FROM [dbo].[DeviceProperty] WITH (NOLOCK) WHERE [Name] = @Property
 	if (@PropertyId IS NULL) BEGIN
-		INSERT INTO [dbo].[DeviceProperty] ([Name]) VALUES (@Property)
+		INSERT INTO [dbo].[DeviceProperty] ([Name], [Type]) VALUES (@Property, @PropertyType)
 		SELECT @PropertyId = IDENT_CURRENT('DeviceProperty')
 	END
 

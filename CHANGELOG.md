@@ -1,5 +1,14 @@
-## 2.0.6 - 2026-02-17
+## 2.0.7 - 2026-02-18
 # Changelog
+
+## 2.0.6 - 2026-02-18
+- Přidány sloupce OldValueReal / NewValueReal (numerická konverze hodnot v SQL pohledu)
+- Konfigurátor viditelnosti sloupců – dropdown s checkboxy, klávesová zkratka Alt+V
+- Horizontální scroll tabulky pro zobrazení většího počtu sloupců
+- Zvýraznění vyhledávacího výrazu (CSS pro `<mark>`, podpora dark mode)
+- Oprava duplicitního filtru `type` na serveru (CSV, XLSX i hlavní API)
+- Rozšíření CSV a XLSX exportu o sloupce OldValueReal / NewValueReal
+- Úprava SQL schématu – nový sloupec Type v tabulce DeviceProperty
 
 ## 2.0.5 - 2026-02-17
 - Přidán filtr Frekvence (za Lokalitou)

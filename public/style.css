@@ -310,6 +310,89 @@ body.dark-mode .multiselect-dropdown label:hover {
   padding: 1rem;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
   margin-bottom: 2rem;
+  overflow-x: auto;
+}
+
+/* Minimum column widths */
+table.dataTable th,
+table.dataTable td {
+  min-width: 70px;
+  white-space: nowrap;
+}
+
+table.dataTable th:nth-child(2),
+table.dataTable td:nth-child(2) {
+  min-width: 150px;
+  /* Datum */
+}
+
+table.dataTable th:nth-child(3),
+table.dataTable td:nth-child(3) {
+  min-width: 160px;
+  /* Zařízení */
+}
+
+/* Column Visibility Dropdown */
+.col-vis-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.col-vis-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  min-width: 220px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  padding: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.col-vis-dropdown.show {
+  display: block;
+}
+
+.col-vis-dropdown label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 0.9rem;
+}
+
+.col-vis-dropdown label:hover {
+  background-color: var(--hover-color);
+}
+
+.col-vis-dropdown hr {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: 6px 0;
+}
+
+.col-vis-dropdown .btn-reset-cols {
+  width: 100%;
+  padding: 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-color);
+  color: var(--text-color);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.col-vis-dropdown .btn-reset-cols:hover {
+  background: var(--primary-color);
+  color: #fff;
+  border-color: var(--primary-color);
 }
 
 /* Table Styling Updates */
@@ -911,4 +994,17 @@ table.dataTable tbody tr.new-record {
 
 body.dark-mode table.dataTable tbody tr.new-record {
   background-color: rgba(40, 167, 69, 0.5) !important;
+}
+
+/* Search Highlight (mark.js) */
+mark {
+  background-color: #ffeb3b !important;
+  color: #000 !important;
+  padding: 1px 2px;
+  border-radius: 2px;
+}
+
+body.dark-mode mark {
+  background-color: #f57c00 !important;
+  color: #fff !important;
 }

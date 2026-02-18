@@ -123,6 +123,15 @@ $(document).ready(function () {
         }
       }, 50);
     }
+
+    // Column Visibility: Alt+V
+    if (e.altKey && (e.key === 'v' || e.key === 'V')) {
+      e.preventDefault();
+      ensurePanelExpanded();
+      setTimeout(() => {
+        $('#colVisDropdown').toggleClass('show');
+      }, 50);
+    }
   });
 
   // --- 1.5 Data Source Logic ---
@@ -619,7 +628,21 @@ $(document).ready(function () {
       { data: 'DeviceType', name: 'DeviceType' },
       { data: 'DeviceProperty', name: 'DeviceProperty' },
       { data: 'OldValue', name: 'OldValue' },
-      { data: 'NewValue', name: 'NewValue' }
+      { data: 'NewValue', name: 'NewValue' },
+      {
+        data: 'OldValueReal', name: 'OldValueReal',
+        render: function (data) {
+          if (data === null || data === undefined) return '';
+          return parseFloat(data).toFixed(2);
+        }
+      },
+      {
+        data: 'NewValueReal', name: 'NewValueReal',
+        render: function (data) {
+          if (data === null || data === undefined) return '';
+          return parseFloat(data).toFixed(2);
+        }
+      }
     ],
     order: [[0, 'desc']],
     dom: 'rt<"bottom"ip><"clear">',
@@ -704,6 +727,70 @@ $(document).ready(function () {
       const now = new Date();
       const utcString = now.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
       $('#lastUpdate').text(utcString);
+    }
+  });
+
+  // === Column Visibility ===
+  const COL_VIS_KEY = 'historian_column_visibility';
+  const columnLabels = [
+    'Id', 'Datum', 'Zařízení', 'Region', 'Lokalita',
+    'Frekvence', 'Typ', 'Vlastnost', 'Stará hodnota', 'Nová hodnota',
+    'Stará hod. (REAL)', 'Nová hod. (REAL)'
+  ];
+
+  function buildColVisDropdown() {
+    const dd = $('#colVisDropdown');
+    dd.empty();
+    const saved = JSON.parse(localStorage.getItem(COL_VIS_KEY) || 'null');
+
+    columnLabels.forEach(function (label, idx) {
+      const isVisible = saved ? saved[idx] !== false : true;
+      const cb = $('<input type="checkbox">')
+        .prop('checked', isVisible)
+        .on('change', function () {
+          const visible = $(this).prop('checked');
+          table.column(idx).visible(visible);
+          saveColVisibility();
+        });
+      const lbl = $('<label>').append(cb).append(document.createTextNode(label));
+      dd.append(lbl);
+
+      // Apply saved visibility
+      table.column(idx).visible(isVisible);
+    });
+
+    dd.append('<hr>');
+    const resetBtn = $('<button class="btn-reset-cols"><i class="fas fa-undo"></i> Reset sloupců</button>')
+      .on('click', function () {
+        localStorage.removeItem(COL_VIS_KEY);
+        columnLabels.forEach(function (_, idx) {
+          table.column(idx).visible(true);
+        });
+        dd.find('input[type="checkbox"]').prop('checked', true);
+      });
+    dd.append(resetBtn);
+  }
+
+  function saveColVisibility() {
+    const vis = [];
+    columnLabels.forEach(function (_, idx) {
+      vis.push(table.column(idx).visible());
+    });
+    localStorage.setItem(COL_VIS_KEY, JSON.stringify(vis));
+  }
+
+  buildColVisDropdown();
+
+  // Toggle dropdown
+  $('#btnColumnVis').on('click', function (e) {
+    e.stopPropagation();
+    $('#colVisDropdown').toggleClass('show');
+  });
+
+  // Close dropdown on outside click
+  $(document).on('click', function (e) {
+    if (!$(e.target).closest('.col-vis-wrapper').length) {
+      $('#colVisDropdown').removeClass('show');
     }
   });
 
@@ -938,6 +1025,7 @@ $(document).ready(function () {
     if (e.key === "Escape") {
       $('#helpModal').fadeOut();
       $('#changelogModal').fadeOut();
+      $('#colVisDropdown').removeClass('show');
     }
   });
 

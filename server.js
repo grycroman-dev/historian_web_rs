@@ -141,7 +141,8 @@ app.get('/api/devicedata', async (req, res) => {
 
     const columns = [
       'Id', 'ModifiedOn', 'Name', 'DeviceRegion', 'DeviceLocality',
-      'Frequency', 'DeviceType', 'DeviceProperty', 'OldValue', 'NewValue'
+      'Frequency', 'DeviceType', 'DeviceProperty', 'OldValue', 'NewValue',
+      'OldValueReal', 'NewValueReal'
     ];
 
     const orderColumn = columns[orderColIdx] || 'Id';
@@ -152,7 +153,6 @@ app.get('/api/devicedata', async (req, res) => {
     // Filtry dropdownů (Multi-select)
     addFilter(requestParams, whereConditions, 'region', 'DeviceRegion', req.query.region || req.query['region[]']);
     addFilter(requestParams, whereConditions, 'locality', 'DeviceLocality', req.query.locality || req.query['locality[]']);
-    addFilter(requestParams, whereConditions, 'type', 'DeviceType', req.query.type || req.query['type[]']);
     addFilter(requestParams, whereConditions, 'type', 'DeviceType', req.query.type || req.query['type[]']);
     addFilter(requestParams, whereConditions, 'property', 'DeviceProperty', req.query.property || req.query['property[]']);
     // Added Frequency filter
@@ -255,7 +255,8 @@ app.get('/api/devicedata/csv', async (req, res) => {
 
     const columns = [
       'Id', 'ModifiedOn', 'Name', 'DeviceRegion', 'DeviceLocality',
-      'Frequency', 'DeviceType', 'DeviceProperty', 'OldValue', 'NewValue'
+      'Frequency', 'DeviceType', 'DeviceProperty', 'OldValue', 'NewValue',
+      'OldValueReal', 'NewValueReal'
     ];
     const orderColumn = columns[orderColIdx] || 'Id';
 
@@ -263,7 +264,6 @@ app.get('/api/devicedata/csv', async (req, res) => {
 
     addFilter(requestParams, whereConditions, 'region', 'DeviceRegion', req.query.region || req.query['region[]']);
     addFilter(requestParams, whereConditions, 'locality', 'DeviceLocality', req.query.locality || req.query['locality[]']);
-    addFilter(requestParams, whereConditions, 'type', 'DeviceType', req.query.type || req.query['type[]']);
     addFilter(requestParams, whereConditions, 'type', 'DeviceType', req.query.type || req.query['type[]']);
     addFilter(requestParams, whereConditions, 'property', 'DeviceProperty', req.query.property || req.query['property[]']);
     // Added Frequency filter
@@ -312,7 +312,7 @@ app.get('/api/devicedata/csv', async (req, res) => {
     const result = await requestParams.query(sqlText);
     const rows = result.recordset;
 
-    let csv = 'Id;Datum;Zarizeni;Region;Lokalita;Frekvence;Typ;Vlastnost;StaraHodnota;NovaHodnota\n';
+    let csv = 'Id;Datum;Zarizeni;Region;Lokalita;Frekvence;Typ;Vlastnost;StaraHodnota;NovaHodnota;StaraHodnotaReal;NovaHodnotaReal\n';
     rows.forEach(r => {
       const esc = s => `"${String(s || '').replace(/"/g, '""')}"`;
       csv += [
@@ -325,7 +325,9 @@ app.get('/api/devicedata/csv', async (req, res) => {
         esc(r.DeviceType),
         esc(r.DeviceProperty),
         esc(r.OldValue),
-        esc(r.NewValue)
+        esc(r.NewValue),
+        r.OldValueReal != null ? r.OldValueReal : '',
+        r.NewValueReal != null ? r.NewValueReal : ''
       ].join(';') + '\n';
     });
 
@@ -352,7 +354,8 @@ app.get('/api/devicedata/xlsx', async (req, res) => {
 
     const columns = [
       'Id', 'ModifiedOn', 'Name', 'DeviceRegion', 'DeviceLocality',
-      'Frequency', 'DeviceType', 'DeviceProperty', 'OldValue', 'NewValue'
+      'Frequency', 'DeviceType', 'DeviceProperty', 'OldValue', 'NewValue',
+      'OldValueReal', 'NewValueReal'
     ];
     const orderColumn = columns[orderColIdx] || 'Id';
 
@@ -360,7 +363,6 @@ app.get('/api/devicedata/xlsx', async (req, res) => {
 
     addFilter(requestParams, whereConditions, 'region', 'DeviceRegion', req.query.region || req.query['region[]']);
     addFilter(requestParams, whereConditions, 'locality', 'DeviceLocality', req.query.locality || req.query['locality[]']);
-    addFilter(requestParams, whereConditions, 'type', 'DeviceType', req.query.type || req.query['type[]']);
     addFilter(requestParams, whereConditions, 'type', 'DeviceType', req.query.type || req.query['type[]']);
     addFilter(requestParams, whereConditions, 'property', 'DeviceProperty', req.query.property || req.query['property[]']);
     // Added Frequency filter
@@ -423,7 +425,9 @@ app.get('/api/devicedata/xlsx', async (req, res) => {
       { header: 'Typ', key: 'DeviceType', width: 15 },
       { header: 'Vlastnost', key: 'DeviceProperty', width: 20 },
       { header: 'Stará hodnota', key: 'OldValue', width: 20 },
-      { header: 'Nová hodnota', key: 'NewValue', width: 20 }
+      { header: 'Nová hodnota', key: 'NewValue', width: 20 },
+      { header: 'Stará hod. (REAL)', key: 'OldValueReal', width: 18 },
+      { header: 'Nová hod. (REAL)', key: 'NewValueReal', width: 18 }
     ];
 
     // Stylování hlavičky
@@ -438,7 +442,7 @@ app.get('/api/devicedata/xlsx', async (req, res) => {
     rows.forEach(r => {
       worksheet.addRow({
         Id: r.Id,
-        ModifiedOn: r.ModifiedOn, // ExcelJS si poradí s Date objektem
+        ModifiedOn: r.ModifiedOn,
         Name: r.Name,
         DeviceRegion: r.DeviceRegion,
         DeviceLocality: r.DeviceLocality,
@@ -446,7 +450,9 @@ app.get('/api/devicedata/xlsx', async (req, res) => {
         DeviceType: r.DeviceType,
         DeviceProperty: r.DeviceProperty,
         OldValue: r.OldValue,
-        NewValue: r.NewValue
+        NewValue: r.NewValue,
+        OldValueReal: r.OldValueReal,
+        NewValueReal: r.NewValueReal
       });
     });
 
