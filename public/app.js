@@ -400,6 +400,7 @@ $(document).ready(function () {
         };
         setCheckboxes('#regionList', f.region);
         setCheckboxes('#localityList', f.locality);
+        setCheckboxes('#deviceList', f.device); // Added
         setCheckboxes('#frequencyList', f.frequency); // Added
         setCheckboxes('#typeList', f.type);
         setCheckboxes('#propertyList', f.property);
@@ -422,7 +423,7 @@ $(document).ready(function () {
         }
 
         // Update Button Texts
-        ['#region', '#locality', '#frequency', '#type', '#property'].forEach(id => {
+        ['#region', '#locality', '#device', '#frequency', '#type', '#property'].forEach(id => {
           // Trigger change event to update button text
           $(`${id}List`).trigger('change', 'input[type="checkbox"]');
 
@@ -449,6 +450,7 @@ $(document).ready(function () {
     const currentFilters = {
       region: getSelectedValues('#regionList'),
       locality: getSelectedValues('#localityList'),
+      device: getSelectedValues('#deviceList'), // Added
       frequency: getSelectedValues('#frequencyList'), // Added
       type: getSelectedValues('#typeList'),
       property: getSelectedValues('#propertyList'),
@@ -553,6 +555,7 @@ $(document).ready(function () {
 
   setupMultiselect('#regionBtn', '#regionList', 'Region', '<i class="fas fa-globe-europe"></i>');
   setupMultiselect('#localityBtn', '#localityList', 'Lokalita', '<i class="fas fa-map-marker-alt"></i>');
+  setupMultiselect('#deviceBtn', '#deviceList', 'Zařízení', '<i class="fas fa-server"></i>'); // Added
   setupMultiselect('#frequencyBtn', '#frequencyList', 'Frekvence', '<i class="fas fa-wave-square"></i>'); // Added
   setupMultiselect('#typeBtn', '#typeList', 'Typ', '<i class="fas fa-cube"></i>');
   setupMultiselect('#propertyBtn', '#propertyList', 'Vlastnost', '<i class="fas fa-tag"></i>');
@@ -590,6 +593,7 @@ $(document).ready(function () {
         // Multi-select filtry (posíláme pole)
         d.region = getSelectedValues('#regionList');
         d.locality = getSelectedValues('#localityList');
+        d.device = getSelectedValues('#deviceList'); // Added
         d.frequency = getSelectedValues('#frequencyList'); // Added
         d.type = getSelectedValues('#typeList');
         d.property = getSelectedValues('#propertyList');
@@ -868,6 +872,7 @@ $(document).ready(function () {
     // Reset textů tlačítek
     $('#regionBtn').html('<i class="fas fa-globe-europe"></i> Region: Vše');
     $('#localityBtn').html('<i class="fas fa-map-marker-alt"></i> Lokalita: Vše');
+    $('#deviceBtn').html('<i class="fas fa-server"></i> Zařízení: Vše'); // Added
     $('#frequencyBtn').html('<i class="fas fa-wave-square"></i> Frekvence: Vše'); // Added
     $('#typeBtn').html('<i class="fas fa-cube"></i> Typ: Vše');
     $('#propertyBtn').html('<i class="fas fa-tag"></i> Vlastnost: Vše');
@@ -919,6 +924,9 @@ $(document).ready(function () {
     const localities = getSelectedValues('#localityList');
     localities.forEach(l => params.append('locality', l));
 
+    const devices = getSelectedValues('#deviceList'); // Added
+    devices.forEach(d => params.append('device', d));
+
     const frequencies = getSelectedValues('#frequencyList'); // Added
     frequencies.forEach(f => params.append('frequency', f));
 
@@ -961,6 +969,7 @@ $(document).ready(function () {
   $.getJSON('/api/filters', function (data) {
     if (data.regions) createCheckboxList('#regionList', data.regions);
     if (data.localities) createCheckboxList('#localityList', data.localities);
+    if (data.devices) createCheckboxList('#deviceList', data.devices); // Added
     if (data.frequencies) createCheckboxList('#frequencyList', data.frequencies); // Added
     if (data.types) createCheckboxList('#typeList', data.types);
     if (data.properties) createCheckboxList('#propertyList', data.properties);
