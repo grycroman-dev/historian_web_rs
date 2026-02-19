@@ -1,0 +1,73 @@
+Ahoj! To je velmi častý dotaz při nasazování aplikací na HTTPS s vlastním (self-signed) certifikátem. Problém, který popisuješ, má dvě roviny a obě musíme vyřešit, aby prohlížeče na jiných počítačích hlásily spojení jako zabezpečené.
+
+1. Shoda identity (Hostname Mismatch)
+Prohlížeč při připojení kontroluje, zda se adresa v řádku prohlížeče (např. 10.0.206.35) shoduje se seznamem jmen uvedených přímo v certifikátu (tzv. Subject Alternative Name - SAN).
+
+Řešení: Ano, do certifikátu musíme vložit všechna jména i IP adresy, přes které se k serveru bude přistupovat. Pokud tam je pouze localhost, bude certifikát na jiném PC vždy neplatný.
+2. Důvěra (Trust Issue)
+Protože certifikát nevydala veřejná autorita (jako Let's Encrypt), prohlížeč na jiném počítači neví, že mu může věřit.
+
+Řešení: Musíš exportovat veřejnou část certifikátu (soubor .cer) a na každém klientském počítači jej nainstalovat do úložiště "Důvěryhodné kořenové certifikační autority".
+
+
+Jak vygenerovat nový certifikát se všemi jmény?
+Můžeš použít následující příkaz v PowerShellu spuštěném jako Správce. Tento příkaz vytvoří certifikát platný pro localhost, název serveru i jeho IP adresu na 10 let:
+
+# 1. Definice hesla (zachováme tvé "historian")
+$password = ConvertTo-SecureString -String "historian" -Force -AsPlainText
+
+# 2. Vytvoření nového self-signed certifikátu se všemi jmény (SAN)
+$cert = New-SelfSignedCertificate -DnsName "localhost", "SRV-SOLCITECT01", "10.0.206.35" `
+    -CertStoreLocation "Cert:\LocalMachine\My" `
+    -NotAfter (Get-Date).AddYears(10) `
+    -FriendlyName "Historian Web SSL"
+
+# 3. Export do formátu PFX pro Node.js (uloží se přímo do tvé složky config)
+Export-PfxCertificate -Cert $cert -FilePath "C:\Users\gryc\.gemini\antigravity\scratch\Historian_web\config\server.pfx" -Password $password
+
+Co udělat na ostatních počítačích?
+Aby zmizelo varování o nezabezpečeném spojení, musíš udělat toto:
+
+Exportovat veřejný klíč: V PowerShellu (jako správce) spusť:
+Export-Certificate -Cert $cert -FilePath "C:\Users\gryc\.gemini\antigravity\scratch\Historian_web\config\server.cer"
+
+Distribuce: Soubor server.cer zkopíruj na počítač uživatele.
+Instalace na klientském PC:
+Dvakrát klikni na server.cer.
+Klikni na Nainstalovat certifikát...
+Zvol Místní počítač.
+Zvol Umístit všechny certifikáty do následujícího úložiště.
+Klikni na Procházet a vyber "Důvěryhodné kořenové certifikační autority".
+Dokonči průvodce.
+
+Jakmile to uděláš a restartuješ prohlížeč, spojení na https://10.0.206.35:3443 bude svítit zeleně jako zabezpečené.
+
+Chceš, abych ten nový certifikát vygeneroval za tebe přímo teď? (Mám k tomu potřebné nástroje v systému).
+
+
+Jak udělat to, aby certifikát vydal ELVAC SOLUTUINS? Aby to bylo někde v popisu certifikátu nebo v CN.
+
+Ahoj! Toho docílíš tím, že do parametru -Subject vložíš tzv. Distinguished Name (DN), který obsahuje název organizace (O = Organization). Hlavní jméno certifikátu (CN = Common Name) by se pak mělo shodovat s primární adresou serveru, ale ELVAC SOLUTIONS tam můžeš přidat jako vydavatele i subjekt.
+
+Zde je upravený skript pro PowerShell, který certifikát vystaví přímo na ELVAC SOLUTIONS:
+
+# 1. Definice hesla
+$password = ConvertTo-SecureString -String "historian" -Force -AsPlainText
+
+# 2. Vytvoření certifikátu s identifikací ELVAC SOLUTIONS
+# CN (Common Name) bude jméno serveru
+# O (Organization) bude ELVAC SOLUTIONS
+$cert = New-SelfSignedCertificate -Subject "CN=SRV-SOLCITECT01, O=ELVAC SOLUTIONS, C=CZ" `
+    -DnsName "localhost", "SRV-SOLCITECT01", "10.0.206.35" `
+    -CertStoreLocation "Cert:\LocalMachine\My" `
+    -NotAfter (Get-Date).AddYears(10) `
+    -FriendlyName "ELVAC SOLUTIONS - Historian Web" `
+    -KeyUsage DigitalSignature, KeyEncipherment `
+    -Type Custom `
+    -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.1") # Server Authentication OID
+
+# 3. Export do PFX (pro Node.js)
+Export-PfxCertificate -Cert $cert -FilePath "c:\Users\gryc\.gemini\antigravity\scratch\Historian_web\config\server.pfx" -Password $password
+
+# 4. Export do CER (veřejná část pro klientské počítače)
+Export-Certificate -Cert $cert -FilePath "c:\Users\gryc\.gemini\antigravity\scratch\Historian_web\config\server.cer"

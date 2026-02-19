@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.15 - 2026-02-19
+- Přidány klávesové zkratky pro navigaci v tabulce:
+    - `Alt + T`: Fokus na tabulku (první vstupní filtr).
+    - `Alt + Šipky vlevo/vpravo` (nebo `PageUp/Down`): Stránkování.
+    - `Alt + Home/End`: Skok na první/poslední stránku.
+- Aktualizace nápovědy o nové navigační zkratky.
+
 ## 2.0.14 - 2026-02-18
 - Oprava chyby v exportu dat (chybějící definice řazení), která blokovala stažení souboru.
 - Oprava kódování CSV exportu přidáním UTF-8 BOM (řeší špatné zobrazení češtiny v Excelu).

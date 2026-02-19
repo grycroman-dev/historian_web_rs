@@ -150,6 +150,45 @@ $(document).ready(function () {
       }, 50);
     }
 
+    // --- Table Navigation Shortcuts ---
+
+    // Previous Page: Alt + ArrowLeft or Alt + PageUp
+    if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'PageUp')) {
+      e.preventDefault();
+      table.page('previous').draw('page');
+    }
+
+    // Next Page: Alt + ArrowRight or Alt + PageDown
+    if (e.altKey && (e.key === 'ArrowRight' || e.key === 'PageDown')) {
+      e.preventDefault();
+      table.page('next').draw('page');
+    }
+
+    // First Page: Alt + Home
+    if (e.altKey && e.key === 'Home') {
+      e.preventDefault();
+      table.page('first').draw('page');
+    }
+
+    // Last Page: Alt + End
+    if (e.altKey && e.key === 'End') {
+      e.preventDefault();
+      table.page('last').draw('page');
+    }
+
+    // Focus Table: Alt + T
+    if (e.altKey && (e.key === 't' || e.key === 'T')) {
+      e.preventDefault();
+      // Focus the first filter input in the table header
+      const firstInput = $('#recordsTable thead input').first();
+      if (firstInput.length) {
+        firstInput.focus();
+      } else {
+        // Fallback to scrolling to table
+        document.getElementById('recordsTable').scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+
   });
 
   // --- 1.5 Data Source Logic ---
