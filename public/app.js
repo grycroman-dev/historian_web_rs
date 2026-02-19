@@ -323,17 +323,19 @@ $(document).ready(function () {
       helpBtn.focus();
     });
     window.addEventListener('click', (e) => {
-      if (e.target === helpModal) helpModal.style.display = 'none';
+      if (e.target === helpModal) {
+        $(helpModal).fadeOut(() => $(helpModal).removeClass('show'));
+      }
     });
     window.addEventListener('keydown', (e) => {
       // Help: Alt+F1
       if (e.altKey && e.key === 'F1') {
         e.preventDefault();
-        helpModal.style.display = 'block';
+        $(helpModal).addClass('show').hide().fadeIn();
         closeHelp.focus();
       }
-      if (e.key === 'Escape' && helpModal.style.display === 'block') {
-        helpModal.style.display = 'none';
+      if (e.key === 'Escape' && $(helpModal).hasClass('show')) {
+        $(helpModal).fadeOut(() => $(helpModal).removeClass('show'));
         helpBtn.focus();
       }
     });

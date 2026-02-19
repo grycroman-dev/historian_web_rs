@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.17 - 2026-02-19
+- Oprava vertikálního centrování modálních oken (Nápověda, Historie změn) – použití CSS třídy `.show` s `display: flex`.
+- Sjednocení logiky otevírání/zavírání okna Nápověda – tlačítko, Alt+F1, klik na pozadí i Esc nyní používají konzistentně `addClass/removeClass('show')`.
+- Oprava zaoblení všech 4 rohů okna Historie změn – scrollování přesunuto do `.modal-body`, vnější rám má `overflow: hidden`.
+- Patička "Stáhnout Changelog" přesunuta mimo scrollovatelnou oblast – vždy viditelná (nový element `.modal-footer-fixed`).
+- Okno "Zpracovávám..." – 50% průhlednost (`rgba(..., 0.5)`) s reflexí světlého i tmavého tématu.
+- Aktivní tlačítko stránky v paginaci – bílé písmo na modrém podkladu (silnější CSS selektor s `!important`).
+- Oprava vertikálního centrování modálů na mobilních zařízeních.
+
 ## 2.0.16 - 2026-02-19
 - Kompletní redesign uživatelského rozhraní na "Premium" vzhled.
 - Implementace glassmorphism efektu, moderních stínů a vylepšené typografie (Inter).
