@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.1.2 - 2026-02-19
+- **Opravy:**
+    - Oprava intervalu automatického obnovení dat z 5 sekund na 30 sekund (jak je uvedeno v UI).
+    - Zvýšení viditelnosti zvýraznění nových záznamů (sytější barva a fallback pro případ selhání animace).
+
+## 2.1.1 - 2026-02-19
+- **Opravy:**
+    - Oprava statistiky "Za poslední hodinu" a "Za posledních 24h" – nyní používá UTC čas pro správné porovnání s databází (řeší problém s nezobrazováním nových záznamů).
+    - Oprava zvýrazňování nových záznamů zelenou barvou (sjednocení názvu CSS třídy v kódu a ve stylu).
+
 ## 2.1.0 - 2026-02-19
 - **Grafy:**
     - Přidána možnost volby barvy grafu (7 barevných schémat).

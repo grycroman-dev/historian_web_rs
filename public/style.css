@@ -551,6 +551,7 @@ table.dataTable tbody tr:hover {
 
 /* HIGHLIGHTS */
 .highlight-new {
+  background-color: rgba(16, 185, 129, 0.4) !important;
   animation: highlight-pulse 5s forwards;
 }
 

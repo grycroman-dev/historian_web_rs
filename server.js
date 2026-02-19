@@ -388,8 +388,8 @@ app.get('/api/devicedata', async (req, res) => {
     try {
       const statsQuery = `
         SELECT 
-          COUNT(CASE WHEN ModifiedOn >= DATEADD(hour, -1, GETDATE()) THEN 1 END) as count1h,
-          COUNT(CASE WHEN ModifiedOn >= DATEADD(day, -1, GETDATE()) THEN 1 END) as count24h
+          COUNT(CASE WHEN ModifiedOn >= DATEADD(hour, -1, GETUTCDATE()) THEN 1 END) as count1h,
+          COUNT(CASE WHEN ModifiedOn >= DATEADD(day, -1, GETUTCDATE()) THEN 1 END) as count24h
         FROM dbo.DeviceDataView ${whereClause};
 
         SELECT TOP 1 Name as val FROM dbo.DeviceDataView ${whereClause} GROUP BY Name ORDER BY COUNT(*) DESC;

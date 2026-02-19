@@ -8,7 +8,7 @@ $(document).ready(function () {
   // --- Configuration ---
   const CONFIG = {
     NEW_RECORD_HIGHLIGHT_DURATION: 5000, // ms - How long the green highlight stays
-    REFRESH_INTERVAL: 5000 // ms
+    REFRESH_INTERVAL: 30000 // ms
   };
 
   // --- 1. Theme Toggle Logic ---
@@ -779,9 +779,9 @@ $(document).ready(function () {
 
         // Highlight only if NOT initial load AND record is newer than last seen max ID
         if (!window.isInitialLoad && window.lastMaxId > 0 && recordId > window.lastMaxId) {
-          $(row).addClass('new-record');
+          $(row).addClass('highlight-new');
           setTimeout(() => {
-            $(row).removeClass('new-record');
+            $(row).removeClass('highlight-new');
           }, CONFIG.NEW_RECORD_HIGHLIGHT_DURATION);
         }
       }
