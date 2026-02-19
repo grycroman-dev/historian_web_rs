@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2.0.15 - 2026-02-19
+- Přidán panel statistik v reálném čase (počty změn za 1h/24h, nejoblíbenější zařízení/vlastnost/frekvence).
 - Přidány klávesové zkratky pro navigaci v tabulce:
     - `Alt + T`: Fokus na tabulku (první vstupní filtr).
     - `Alt + Šipky vlevo/vpravo` (nebo `PageUp/Down`): Stránkování.

@@ -229,11 +229,39 @@ app.get('/api/devicedata', async (req, res) => {
 
     const dataRes = await requestParams.query(dataQuery);
 
+    // --- Real-time Stats ---
+    let stats = { count1h: 0, count24h: 0, topDevice: '-', topProperty: '-', topFrequency: '-' };
+    try {
+      const statsQuery = `
+        SELECT 
+          COUNT(CASE WHEN ModifiedOn >= DATEADD(hour, -1, GETDATE()) THEN 1 END) as count1h,
+          COUNT(CASE WHEN ModifiedOn >= DATEADD(day, -1, GETDATE()) THEN 1 END) as count24h
+        FROM dbo.DeviceDataView ${whereClause};
+
+        SELECT TOP 1 Name as val FROM dbo.DeviceDataView ${whereClause} GROUP BY Name ORDER BY COUNT(*) DESC;
+        SELECT TOP 1 DeviceProperty as val FROM dbo.DeviceDataView ${whereClause} GROUP BY DeviceProperty ORDER BY COUNT(*) DESC;
+        SELECT TOP 1 Frequency as val FROM dbo.DeviceDataView ${whereClause} GROUP BY Frequency ORDER BY COUNT(*) DESC;
+      `;
+      const statsRes = await requestParams.query(statsQuery);
+
+      if (statsRes.recordsets && statsRes.recordsets.length >= 4) {
+        const counts = statsRes.recordsets[0][0];
+        stats.count1h = counts.count1h;
+        stats.count24h = counts.count24h;
+        stats.topDevice = statsRes.recordsets[1][0]?.val || '-';
+        stats.topProperty = statsRes.recordsets[2][0]?.val || '-';
+        stats.topFrequency = statsRes.recordsets[3][0]?.val || '-';
+      }
+    } catch (sErr) {
+      console.error('Chyba při výpočtu statistik:', sErr);
+    }
+
     res.json({
       draw,
       recordsTotal,
       recordsFiltered,
-      data: dataRes.recordset
+      data: dataRes.recordset,
+      stats
     });
 
   } catch (err) {

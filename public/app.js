@@ -802,6 +802,16 @@ $(document).ready(function () {
       const now = new Date();
       const utcString = now.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
       $('#lastUpdate').text(utcString);
+
+      // Update Real-time Stats from server JSON response
+      const json = api.ajax.json();
+      if (json && json.stats) {
+        $('#statLastHour').text(json.stats.count1h.toLocaleString());
+        $('#statLast24h').text(json.stats.count24h.toLocaleString());
+        $('#statTopDevice').text(json.stats.topDevice).attr('title', json.stats.topDevice);
+        $('#statTopProperty').text(json.stats.topProperty).attr('title', json.stats.topProperty);
+        $('#statTopFrequency').text(json.stats.topFrequency).attr('title', json.stats.topFrequency);
+      }
     }
   });
 
