@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.16 - 2026-02-19
+- Kompletní redesign uživatelského rozhraní na "Premium" vzhled.
+- Implementace glassmorphism efektu, moderních stínů a vylepšené typografie (Inter).
+- Optimalizace mobilního zobrazení (Card View) s důrazem na čitelnost a "moderní SaaS" estetiku.
+- Plynulé animace a mikro-interakce v ovládacím panelu a dropdown menu.
+- Vylepšené vyhledávací pole s modernizovaným tlačítkem pro vymazání.
+
 ## 2.0.15 - 2026-02-19
 - Přidán panel statistik v reálném čase (počty změn za 1h/24h, nejoblíbenější zařízení/vlastnost/frekvence).
 - Přidány klávesové zkratky pro navigaci v tabulce:

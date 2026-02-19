@@ -190,17 +190,17 @@
       </div>
     </div>
     <div class="stat-card">
-      <div class="stat-icon"><i class="fas fa-tag"></i></div>
-      <div class="stat-info">
-        <span class="stat-value" id="statTopProperty">-</span>
-        <span class="stat-label">Top Vlastnost</span>
-      </div>
-    </div>
-    <div class="stat-card">
       <div class="stat-icon"><i class="fas fa-wave-square"></i></div>
       <div class="stat-info">
         <span class="stat-value" id="statTopFrequency">-</span>
         <span class="stat-label">Top Frekvence</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon"><i class="fas fa-tag"></i></div>
+      <div class="stat-info">
+        <span class="stat-value" id="statTopProperty">-</span>
+        <span class="stat-label">Top Vlastnost</span>
       </div>
     </div>
   </div>
@@ -264,23 +264,24 @@
     <div class="modal-content">
       <h2 id="helpTitle">Nápověda a klávesové zkratky</h2>
       <button id="closeHelp" aria-label="Zavřít nápovědu">&times;</button>
-      <ul>
-        <li><kbd>Alt + F1</kbd> – Nápověda</li>
-        <li><kbd>Alt + M</kbd> – přepnutí světlého/tmavého režimu</li>
-        <li><kbd>Alt + S</kbd> – přepnutí zdroje dat (Hlavní/Záložní)</li>
-        <li><kbd>Alt + C</kbd> – zrušení všech filtrů</li>
-        <li><kbd>Alt + P</kbd> – přepnutí panelu filtrů (sbalit/rozbalit)</li>
-        <li><kbd>Alt + F</kbd> – fokus na výběr filtru</li>
-        <li><kbd>Alt + H</kbd> – fokus na vyhledávání</li>
-        <li><kbd>Alt + A</kbd> – přepnutí automatické aktualizace</li>
-        <li><kbd>Alt + V</kbd> – zobrazit/skrýt sloupce</li>
-        <li><kbd>Alt + E</kbd> – export dat</li>
-        <li><kbd>Alt + T</kbd> – fokus na tabulku</li>
-        <li><kbd>Alt + ←/→</kbd> – předchozí/další stránka</li>
-        <li><kbd>Alt + Home/End</kbd> – první/poslední stránka</li>
-        <li><kbd>Esc</kbd> – zavření nápovědy</li>
-
-      </ul>
+      <div class="modal-body">
+        <ul>
+          <li><kbd>Alt + F1</kbd> – Nápověda</li>
+          <li><kbd>Alt + M</kbd> – přepnutí světlého/tmavého režimu</li>
+          <li><kbd>Alt + S</kbd> – přepnutí zdroje dat (Hlavní/Záložní)</li>
+          <li><kbd>Alt + C</kbd> – zrušení všech filtrů</li>
+          <li><kbd>Alt + P</kbd> – přepnutí panelu filtrů (sbalit/rozbalit)</li>
+          <li><kbd>Alt + F</kbd> – fokus na výběr filtru</li>
+          <li><kbd>Alt + H</kbd> – fokus na vyhledávání</li>
+          <li><kbd>Alt + A</kbd> – přepnutí automatické aktualizace</li>
+          <li><kbd>Alt + V</kbd> – zobrazit/skrýt sloupce</li>
+          <li><kbd>Alt + E</kbd> – export dat</li>
+          <li><kbd>Alt + T</kbd> – fokus na tabulku</li>
+          <li><kbd>Alt + ←/→</kbd> – předchozí/další stránka</li>
+          <li><kbd>Alt + Home/End</kbd> – první/poslední stránka</li>
+          <li><kbd>Esc</kbd> – zavření nápovědy</li>
+        </ul>
+      </div>
     </div>
   </div>
 
@@ -288,13 +289,16 @@
     <div class="modal-content modal-lg">
       <h2 id="changelogTitle">Historie změn</h2>
       <button id="closeChangelog" aria-label="Zavřít changelog">&times;</button>
-      <div id="changelogContent" class="changelog-text">Načítání...</div>
-      <div class="modal-footer" style="text-align: right; margin-top: 10px;">
+      <div class="modal-body">
+        <div id="changelogContent" class="changelog-text">Načítání...</div>
+      </div>
+      <div class="modal-footer-fixed">
         <a href="/api/changelog/download" class="btn-link"
           style="color: var(--accent-color); text-decoration: none; font-size: 0.9em;" download>
           <i class="fas fa-download"></i> Stáhnout Changelog
         </a>
       </div>
+
     </div>
   </div>
 

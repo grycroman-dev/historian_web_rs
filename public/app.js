@@ -155,25 +155,25 @@ $(document).ready(function () {
     // Previous Page: Alt + ArrowLeft or Alt + PageUp
     if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'PageUp')) {
       e.preventDefault();
-      table.page('previous').draw('page');
+      table.page('previous').draw(false);
     }
 
     // Next Page: Alt + ArrowRight or Alt + PageDown
     if (e.altKey && (e.key === 'ArrowRight' || e.key === 'PageDown')) {
       e.preventDefault();
-      table.page('next').draw('page');
+      table.page('next').draw(false);
     }
 
     // First Page: Alt + Home
     if (e.altKey && e.key === 'Home') {
       e.preventDefault();
-      table.page('first').draw('page');
+      table.page('first').draw(false);
     }
 
     // Last Page: Alt + End
     if (e.altKey && e.key === 'End') {
       e.preventDefault();
-      table.page('last').draw('page');
+      table.page('last').draw(false);
     }
 
     // Focus Table: Alt + T
@@ -315,11 +315,11 @@ $(document).ready(function () {
 
   if (helpBtn && helpModal && closeHelp) {
     helpBtn.addEventListener('click', () => {
-      helpModal.style.display = 'block';
+      $(helpModal).addClass('show').hide().fadeIn();
       closeHelp.focus();
     });
     closeHelp.addEventListener('click', () => {
-      helpModal.style.display = 'none';
+      $(helpModal).fadeOut(() => $(helpModal).removeClass('show'));
       helpBtn.focus();
     });
     window.addEventListener('click', (e) => {
@@ -593,6 +593,21 @@ $(document).ready(function () {
       // Zavřít ostatní
       $('.multiselect-dropdown').not(list).removeClass('show');
       list.toggleClass('show');
+
+      if (list.hasClass('show')) {
+        setTimeout(() => {
+          list.find('.multiselect-search').focus();
+        }, 50);
+      }
+    });
+
+    // Close on Escape inside list
+    list.on('keydown', function (e) {
+      if (e.key === 'Escape') {
+        list.removeClass('show');
+        btn.focus();
+        e.stopPropagation();
+      }
     });
 
     // Změna v checkboxech
@@ -608,6 +623,19 @@ $(document).ready(function () {
       }
       refreshTable();
     });
+
+    // Search filtering logic
+    list.on('input', '.multiselect-search', function () {
+      const val = $(this).val().toLowerCase();
+      list.find('label').each(function () {
+        const text = $(this).text().toLowerCase();
+        if (text.includes(val)) {
+          $(this).removeClass('hidden');
+        } else {
+          $(this).addClass('hidden');
+        }
+      });
+    });
   }
 
   setupMultiselect('#regionBtn', '#regionList', 'Region', '<i class="fas fa-globe-europe"></i>');
@@ -620,6 +648,8 @@ $(document).ready(function () {
   // Zavírání dropdownů při kliku mimo
   $(document).on('click', function () {
     $('.multiselect-dropdown').removeClass('show');
+    $('.export-dropdown').removeClass('show');
+    $('.col-vis-dropdown').removeClass('show');
   });
 
   $('.multiselect-dropdown').on('click', function (e) {
@@ -746,7 +776,6 @@ $(document).ready(function () {
         const recordId = parseInt(idVal);
 
         // Highlight only if NOT initial load AND record is newer than last seen max ID
-        // Using ID is more robust than Date for "New Records" check
         if (!window.isInitialLoad && window.lastMaxId > 0 && recordId > window.lastMaxId) {
           $(row).addClass('new-record');
           setTimeout(() => {
@@ -755,8 +784,17 @@ $(document).ready(function () {
         }
       }
     },
+    createdRow: function (row, data, dataIndex) {
+      // Dynamic labels for mobile Card View from table headers
+      const headers = $('#recordsTable thead th').map(function () {
+        return $(this).text().split('\n')[0].trim();
+      }).get();
+
+      $(row).find('td').each(function (i) {
+        $(this).attr('data-label', headers[i] || '');
+      });
+    },
     drawCallback: function (settings) {
-      // Find max Id in current data and update watermark
       const api = this.api();
       const rows = api.rows({ page: 'current' }).data();
 
@@ -791,7 +829,6 @@ $(document).ready(function () {
         const match = id.match(/filter-col-(\d+)/);
         if (val && match) {
           const colIdx = parseInt(match[1]);
-          // Zvýraznit pouze v daném sloupci pro přehlednost
           api.column(colIdx).nodes().to$().mark(val);
         }
       });
@@ -888,7 +925,7 @@ $(document).ready(function () {
   });
 
   function refreshTable() {
-    table.draw();
+    table.draw(false);
   }
 
   // Dropdowny už volají refreshTable samy uvnitř setupMultiselect
@@ -1146,7 +1183,7 @@ $(document).ready(function () {
   });
 
   // Načtení verze aplikace
-  $.get('/api/version', function (data) {
+  $.get('/api/version?v=' + Date.now(), function (data) {
     if (data && data.version) {
       const versionEl = $('#appVersion');
       versionEl.text(data.version);
@@ -1156,10 +1193,10 @@ $(document).ready(function () {
       versionEl.attr('title', 'Klikněte pro zobrazení historie změn');
 
       versionEl.on('click', function () {
-        $('#changelogModal').fadeIn();
+        $('#changelogModal').addClass('show').hide().fadeIn();
         $('#changelogContent').text('Načítání...');
 
-        $.get('/api/changelog', function (res) {
+        $.get('/api/changelog?v=' + Date.now(), function (res) {
           if (res && res.content) {
             // Improved parsing to reduce gaps
             // Improved parsing to reduce gaps
@@ -1186,7 +1223,7 @@ $(document).ready(function () {
 
   // Close Changelog Modal
   $('#closeChangelog').on('click', function () {
-    $('#changelogModal').fadeOut();
+    $('#changelogModal').fadeOut(() => $('#changelogModal').removeClass('show'));
   });
 
   // Close on outside click (generic for both modals)
@@ -1202,9 +1239,12 @@ $(document).ready(function () {
   // Close on ESC key
   $(document).on('keydown', function (e) {
     if (e.key === "Escape") {
-      $('#helpModal').fadeOut();
-      $('#changelogModal').fadeOut();
-      $('#colVisDropdown').removeClass('show');
+      $('.modal').fadeOut(function () {
+        $(this).removeClass('show');
+      });
+      $('.multiselect-dropdown').removeClass('show');
+      $('.export-dropdown').removeClass('show');
+      $('.col-vis-dropdown').removeClass('show');
     }
   });
 
