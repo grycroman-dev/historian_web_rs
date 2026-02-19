@@ -133,6 +133,11 @@
             </select>
           </div>
 
+          <button id="btnChart" class="btn btn-primary btn-chart"
+            title="Zobrazit graf - aktivní při výběru 1 zařízení + 1 vlastnosti (Alt+G)" disabled>
+            <i class="fas fa-chart-line"></i> Graf
+          </button>
+
           <div class="export-wrapper">
             <button id="btnExport" class="btn-icon" title="Export dat"><i class="fas fa-file-export"></i>
               Export</button>
@@ -279,6 +284,7 @@
           <li><kbd>Alt + T</kbd> – fokus na tabulku</li>
           <li><kbd>Alt + ←/→</kbd> – předchozí/další stránka</li>
           <li><kbd>Alt + Home/End</kbd> – první/poslední stránka</li>
+          <li><kbd>Alt + G</kbd> – zobrazit graf (aktivní při 1 zařízení + 1 vlastnosti)</li>
           <li><kbd>Esc</kbd> – zavření nápovědy</li>
         </ul>
       </div>
@@ -302,10 +308,58 @@
     </div>
   </div>
 
+  <!-- Graf Modal -->
+  <div id="chartModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="chartModalTitle">
+    <div class="modal-content modal-xl">
+      <h2 id="chartModalTitle"><i class="fas fa-chart-line"></i> Graf: <span id="chartTitle"></span></h2>
+      <button id="closeChart" aria-label="Zavřít graf">&times;</button>
+      <div class="chart-toolbar">
+        <label for="chartType" style="font-size:0.85rem; color:var(--text-muted);"><i class="fas fa-shapes"></i>
+          Typ:</label>
+        <select id="chartType" class="form-select" style="width:auto; min-width:140px;">
+          <option value="line">Liniový</option>
+          <option value="bar">Sloupcový</option>
+          <option value="scatter">Bodový (Scatter)</option>
+        </select>
+
+        <label for="chartColor" style="font-size:0.85rem; color:var(--text-muted); margin-left: 1rem;"><i
+            class="fas fa-palette"></i> Barva:</label>
+        <select id="chartColor" class="form-select" style="width:auto; min-width:120px;">
+          <option value="blue" selected>Modrá</option>
+          <option value="red">Červená</option>
+          <option value="green">Zelená</option>
+          <option value="yellow">Žlutá</option>
+          <option value="purple">Fialová</option>
+          <option value="orange">Oranžová</option>
+          <option value="cyan">Tyrkysová</option>
+        </select>
+        <span id="chartPointCount" class="status-item" style="font-size:0.8rem;"></span>
+        <div style="margin-left:auto; display:flex; gap:0.5rem;">
+          <button id="exportChartPNG" class="btn-icon" title="Uložit jako PNG">
+            <i class="fas fa-image"></i> PNG
+          </button>
+          <button id="exportChartCSV" class="btn-icon" title="Exportovat data jako CSV">
+            <i class="fas fa-file-csv"></i> CSV
+          </button>
+          <button id="exportChartExcel" class="btn-icon" title="Exportovat data do Excelu">
+            <i class="fas fa-file-excel"></i> Excel
+          </button>
+        </div>
+      </div>
+      <div class="modal-body chart-body">
+        <div id="chartLoading" style="text-align:center; padding:3rem; display:none; color:var(--text-muted);">
+          <i class="fas fa-spinner fa-spin fa-2x"></i><br><br>Načítám data...
+        </div>
+        <canvas id="chartCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+
   <script src="vendors/jquery/jquery.min.js"></script>
   <script src="vendors/datatables/datatables.min.js"></script>
   <script src="vendors/mark/mark.min.js"></script>
   <script src="vendors/mark/jquery.mark.min.js"></script>
+  <script src="vendors/chartjs/chart.min.js"></script>
   <script src="app.js"></script>
 </body>
 

@@ -1011,6 +1011,10 @@ $(document).ready(function () {
     toggleClearSearchBtn();
     $('.filter-input').val('');
 
+    // Update Chart Button State
+    updateChartButton();
+
+
     // Force full reload with reset to page 1
     table.ajax.reload(null, true);
   });
@@ -1231,10 +1235,13 @@ $(document).ready(function () {
   // Close on outside click (generic for both modals)
   $(window).on('click', function (event) {
     if ($(event.target).is('#helpModal')) {
-      $('#helpModal').fadeOut();
+      $('#helpModal').fadeOut(() => $('#helpModal').removeClass('show'));
     }
     if ($(event.target).is('#changelogModal')) {
-      $('#changelogModal').fadeOut();
+      $('#changelogModal').fadeOut(() => $('#changelogModal').removeClass('show'));
+    }
+    if ($(event.target).is('#chartModal')) {
+      $('#chartModal').fadeOut(() => $('#chartModal').removeClass('show'));
     }
   });
 
@@ -1248,6 +1255,277 @@ $(document).ready(function () {
       $('.export-dropdown').removeClass('show');
       $('.col-vis-dropdown').removeClass('show');
     }
+    // Alt+G – otevřít graf (jen pokud je tlačítko aktivní)
+    if (e.altKey && e.key === 'g') {
+      e.preventDefault();
+      if (!$('#btnChart').prop('disabled')) {
+        $('#btnChart').trigger('click');
+      }
+    }
+  });
+
+  // =====================================================================
+  // --- GRAF LOGIKA
+  // =====================================================================
+
+  let chartInstance = null;
+  let chartData = null; // Poslední načtená data pro export
+
+  // Palety barev (Světlý / Tmavý)
+  const chartColors = {
+    blue: { light: '#2563eb', dark: '#3b82f6' }, // Primary
+    red: { light: '#dc2626', dark: '#ef4444' }, // Danger
+    green: { light: '#16a34a', dark: '#22c55e' }, // Success
+    yellow: { light: '#ca8a04', dark: '#eab308' }, // Warning
+    purple: { light: '#7c3aed', dark: '#8b5cf6' }, // Accent
+    orange: { light: '#ea580c', dark: '#f97316' },
+    cyan: { light: '#0891b2', dark: '#06b6d4' }
+  };
+
+  // Načtení uložené barvy
+  const savedColor = localStorage.getItem('chartColor') || 'blue';
+  $('#chartColor').val(savedColor);
+
+  // Helper: Hex to RGBA
+  function hexToRgba(hex, alpha) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
+  // Aktivace/deaktivace tlačítka Graf
+  function updateChartButton() {
+    const devices = getSelectedValues('#deviceList');
+    const properties = getSelectedValues('#propertyList');
+    const active = (devices.length === 1 && properties.length === 1);
+    $('#btnChart').prop('disabled', !active);
+  }
+
+  // Napojení na změny multiselectů
+  $('#deviceList, #propertyList').on('change', 'input[type="checkbox"]', updateChartButton);
+
+  // Vykreslení / překreslení grafu
+  function renderChart(data, chartType) {
+    const canvas = document.getElementById('chartCanvas');
+    if (!canvas) return;
+
+    // Zruš předchozí instanci
+    if (chartInstance) {
+      chartInstance.destroy();
+      chartInstance = null;
+    }
+
+    const isDark = document.body.classList.contains('dark-mode');
+    const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)';
+    const textColor = isDark ? '#94a3b8' : '#64748b';
+
+    // Vybraná barva
+    const colorKey = $('#chartColor').val() || 'blue';
+    const palette = chartColors[colorKey] || chartColors.blue;
+    const baseColor = isDark ? palette.dark : palette.light;
+
+    const lineColor = baseColor;
+    const fillColor = hexToRgba(baseColor, isDark ? 0.15 : 0.12);
+    const barColor = hexToRgba(baseColor, isDark ? 0.75 : 0.7);
+
+    const labels = data.points.map(p => {
+      const d = new Date(p.x);
+      return d.toISOString().replace('T', ' ').substring(0, 19);
+    });
+    const values = data.points.map(p => p.y);
+
+    // Scatter: indexy na X-ose (time adapter není k dispozici)
+    const isScatter = chartType === 'scatter';
+    const scatterData = data.points.map((p, i) => ({ x: i, y: p.y }));
+
+    const datasets = [{
+      label: `${data.property} – Nová hodnota`,
+      data: isScatter ? scatterData : values,
+      borderColor: lineColor,
+      backgroundColor: chartType === 'line' ? fillColor : barColor,
+      pointBackgroundColor: lineColor,
+      pointRadius: data.points.length > 500 ? 1 : 3,
+      pointHoverRadius: 5,
+      borderWidth: 2,
+      fill: chartType === 'line',
+      tension: 0.3
+    }];
+
+    chartInstance = new Chart(canvas, {
+      type: chartType === 'scatter' ? 'scatter' : chartType,
+      data: isScatter ? { datasets } : { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: data.points.length > 1000 ? 0 : 400 },
+        plugins: {
+          legend: { labels: { color: textColor } },
+          tooltip: {
+            callbacks: {
+              title: ctx => {
+                if (isScatter && ctx[0]) {
+                  const idx = ctx[0].parsed.x;
+                  if (data.points[idx]) {
+                    return new Date(data.points[idx].x).toISOString().replace('T', ' ').substring(0, 19);
+                  }
+                }
+                return ctx[0]?.label || '';
+              },
+              label: ctx => ` ${ctx.parsed.y}`
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: {
+              color: textColor,
+              maxTicksLimit: isScatter ? 8 : 12,
+              maxRotation: 45,
+              callback: isScatter
+                ? (val, idx) => {
+                  const pt = data.points[val];
+                  return pt ? new Date(pt.x).toISOString().substring(11, 16) : '';
+                }
+                : undefined
+            },
+            grid: { color: gridColor }
+          },
+          y: {
+            ticks: { color: textColor },
+            grid: { color: gridColor }
+          }
+        }
+      }
+    });
+  }
+
+  // Kliknutí na tlačítko Graf
+  $('#btnChart').on('click', function () {
+    const device = getSelectedValues('#deviceList')[0];
+    const property = getSelectedValues('#propertyList')[0];
+    if (!device || !property) return;
+
+    // Nastav titulek
+    $('#chartTitle').text(`${device} / ${property}`);
+
+    // Otevři modal
+    $('#chartModal').addClass('show').hide().fadeIn();
+
+    // Zobraz spinner, skryj canvas
+    $('#chartLoading').show();
+    $('#chartCanvas').hide();
+    $('#chartPointCount').text('');
+
+    // Načti data
+    const params = {
+      device,
+      property,
+      dateFrom: $('#dateFrom').val(),
+      timeFrom: $('#timeFrom').val(),
+      dateTo: $('#dateTo').val(),
+      timeTo: $('#timeTo').val(),
+      dataSource: localStorage.getItem('dataSource') || 'main'
+    };
+
+    const globalSearch = $('#globalSearch').val();
+    if (globalSearch) params.searchGlobal = globalSearch;
+
+    const colTimeFilter = $('#filter-col-1').val();
+    if (colTimeFilter) params.colTimeSearch = colTimeFilter;
+
+    $.get('/api/chart-data', params)
+      .done(function (data) {
+        chartData = data;
+        $('#chartLoading').hide();
+        $('#chartCanvas').show();
+        if (!data.points || data.points.length === 0) {
+          $('#chartPointCount').text('Žádná data pro zvolený rozsah.');
+          if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+          return;
+        }
+        $('#chartPointCount').text(`${data.points.length} bodů`);
+        renderChart(data, $('#chartType').val());
+      })
+      .fail(function () {
+        $('#chartLoading').hide();
+        $('#chartCanvas').show();
+        $('#chartPointCount').text('Chyba při načítání dat.');
+      });
+  });
+
+  // Zavření grafu
+  $('#closeChart').on('click', function () {
+    $('#chartModal').fadeOut(() => $('#chartModal').removeClass('show'));
+  });
+
+  // Přepnutí typu grafu
+  $('#chartType').on('change', function () {
+    if (chartData && chartData.points && chartData.points.length > 0) {
+      renderChart(chartData, $(this).val());
+    }
+  });
+
+  // Změna barvy grafu
+  $('#chartColor').on('change', function () {
+    const color = $(this).val();
+    localStorage.setItem('chartColor', color);
+    if (chartData && chartData.points && chartData.points.length > 0) {
+      renderChart(chartData, $('#chartType').val());
+    }
+  });
+
+  // Export Excel
+  $('#exportChartExcel').on('click', function () {
+    if (!chartData) return;
+    const device = getSelectedValues('#deviceList')[0] || '';
+    const property = getSelectedValues('#propertyList')[0] || '';
+    if (!device || !property) return;
+
+    let url = `/api/chart-data/excel?device=${encodeURIComponent(device)}&property=${encodeURIComponent(property)}`;
+    url += `&dataSource=${localStorage.getItem('dataSource') || 'main'}`;
+    url += `&dateFrom=${$('#dateFrom').val()}`;
+    url += `&timeFrom=${$('#timeFrom').val()}`;
+    url += `&dateTo=${$('#dateTo').val()}`;
+    url += `&timeTo=${$('#timeTo').val()}`;
+
+    const globalSearch = $('#globalSearch').val();
+    if (globalSearch) url += `&colTimeSearch=${encodeURIComponent(globalSearch)}`;
+
+    const colTimeFilter = $('#filter-col-1').val();
+    if (colTimeFilter) url += `&colTimeSearch=${encodeURIComponent(colTimeFilter)}`;
+
+    window.location.href = url;
+  });
+
+  // Export PNG
+  $('#exportChartPNG').on('click', function () {
+    const canvas = document.getElementById('chartCanvas');
+    if (!canvas) return;
+    const link = document.createElement('a');
+    const device = getSelectedValues('#deviceList')[0] || 'device';
+    const property = getSelectedValues('#propertyList')[0] || 'property';
+    link.download = `graf_${device}_${property}_${new Date().toISOString().substring(0, 10)}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  });
+
+  // Export CSV
+  $('#exportChartCSV').on('click', function () {
+    if (!chartData || !chartData.points) return;
+    const device = chartData.device || '';
+    const property = chartData.property || '';
+    let csv = '\uFEFF'; // UTF-8 BOM pro Excel
+    csv += `"Zařízení";"Vlastnost";"Čas (UTC)";"Nová hodnota"\r\n`;
+    chartData.points.forEach(p => {
+      const dt = new Date(p.x).toISOString().replace('T', ' ').substring(0, 19);
+      csv += `"${device}";"${property}";"${dt}";"${p.y}"\r\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `graf_${device}_${property}_${new Date().toISOString().substring(0, 10)}.csv`;
+    link.click();
   });
 
   $('#currentYear').text(new Date().getFullYear());

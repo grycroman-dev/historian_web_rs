@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.1.0 - 2026-02-19
+- **Grafy:**
+    - Přidána možnost volby barvy grafu (7 barevných schémat).
+    - Barva grafu se pamatuje i po obnovení stránky (localStorage).
+    - Automatické přizpůsobení barev světlému a tmavému režimu.
+- **Export:**
+    - Opraven export dat z grafu do Excelu (nyní generuje validní .xlsx s daty).
+    - Tlačítko Excel přesunuto na konec toolbaru.
+- **Optimalizace:**
+    - Konsolidace kódu pro obsluhu grafů a odstranění duplicit.
+    - Oprava stavu tlačítka "Graf" po resetování všech filtrů (nyní se správně deaktivuje).
+
 ## 2.0.17 - 2026-02-19
 - Oprava vertikálního centrování modálních oken (Nápověda, Historie změn) – použití CSS třídy `.show` s `display: flex`.
 - Sjednocení logiky otevírání/zavírání okna Nápověda – tlačítko, Alt+F1, klik na pozadí i Esc nyní používají konzistentně `addClass/removeClass('show')`.

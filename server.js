@@ -128,6 +128,160 @@ app.get('/api/changelog/download', (req, res) => {
 
 });
 
+// --- Graf dat: časová řada NewValueReal pro 1 zařízení + 1 vlastnost ---
+app.get('/api/chart-data', async (req, res) => {
+  try {
+    const dataSource = req.query.dataSource || 'main';
+    const pool = await getPool(dataSource);
+
+    const device = req.query.device;
+    const property = req.query.property;
+
+    if (!device || !property) {
+      return res.status(400).json({ error: 'Parametry device a property jsou povinné.' });
+    }
+
+    const request = pool.request();
+    request.input('device', sql.NVarChar, device);
+    request.input('property', sql.NVarChar, property);
+
+    let whereClauses = [
+      'Name = @device',
+      'DeviceProperty = @property',
+      'NewValueReal IS NOT NULL'
+    ];
+
+    if (req.query.dateFrom) {
+      request.input('dateFrom', sql.Date, req.query.dateFrom);
+      whereClauses.push('CAST(ModifiedOn AS DATE) >= @dateFrom');
+    }
+    if (req.query.dateTo) {
+      request.input('dateTo', sql.Date, req.query.dateTo);
+      whereClauses.push('CAST(ModifiedOn AS DATE) <= @dateTo');
+    }
+    if (req.query.timeFrom && req.query.timeFrom.trim() !== '') {
+      request.input('timeFrom', sql.VarChar(5), req.query.timeFrom);
+      whereClauses.push("CONVERT(CHAR(5), ModifiedOn, 108) >= @timeFrom");
+    }
+    if (req.query.timeTo && req.query.timeTo.trim() !== '') {
+      request.input('timeTo', sql.VarChar(5), req.query.timeTo);
+      whereClauses.push("CONVERT(CHAR(5), ModifiedOn, 108) <= @timeTo");
+    }
+    // Column text search na ModifiedOn (např. "09:4" z column filtru)
+    if (req.query.colTimeSearch && req.query.colTimeSearch.trim() !== '') {
+      const escaped = req.query.colTimeSearch.replace(/'/g, "''").replace(/%/g, '[%]').replace(/_/g, '[_]');
+      whereClauses.push(`CONVERT(VARCHAR(23), ModifiedOn, 121) LIKE N'%${escaped}%'`);
+    }
+
+    const whereSQL = whereClauses.length > 0 ? 'WHERE ' + whereClauses.join(' AND ') : '';
+    const query = `
+      SELECT TOP 5000 ModifiedOn, NewValueReal
+      FROM dbo.DeviceDataView
+      ${whereSQL}
+      ORDER BY ModifiedOn ASC
+    `;
+
+    const result = await request.query(query);
+    const points = result.recordset.map(row => ({
+      x: row.ModifiedOn,
+      y: parseFloat(row.NewValueReal)
+    }));
+
+    res.json({ device, property, points, count: points.length });
+  } catch (err) {
+    console.error('Chyba /api/chart-data:', err);
+    res.status(500).json({ error: 'Chyba při načítání dat pro graf.' });
+  }
+});
+
+// --- Graf: Export do Excelu ---
+app.get('/api/chart-data/excel', async (req, res) => {
+  try {
+    const dataSource = req.query.dataSource || 'main';
+    const pool = await getPool(dataSource);
+
+    const device = req.query.device;
+    const property = req.query.property;
+
+    if (!device || !property) {
+      return res.status(400).json({ error: 'Parametry device a property jsou povinné.' });
+    }
+
+    const request = pool.request();
+    request.input('device', sql.NVarChar, device);
+    request.input('property', sql.NVarChar, property);
+
+    let whereClauses = ['Name = @device', 'DeviceProperty = @property', 'NewValueReal IS NOT NULL'];
+
+    if (req.query.dateFrom) { request.input('dateFrom', sql.Date, req.query.dateFrom); whereClauses.push('CAST(ModifiedOn AS DATE) >= @dateFrom'); }
+    if (req.query.dateTo) { request.input('dateTo', sql.Date, req.query.dateTo); whereClauses.push('CAST(ModifiedOn AS DATE) <= @dateTo'); }
+    if (req.query.timeFrom && req.query.timeFrom.trim()) { request.input('timeFrom', sql.VarChar(5), req.query.timeFrom); whereClauses.push("CONVERT(CHAR(5), ModifiedOn, 108) >= @timeFrom"); }
+    if (req.query.timeTo && req.query.timeTo.trim()) { request.input('timeTo', sql.VarChar(5), req.query.timeTo); whereClauses.push("CONVERT(CHAR(5), ModifiedOn, 108) <= @timeTo"); }
+    if (req.query.colTimeSearch && req.query.colTimeSearch.trim()) {
+      const escaped = req.query.colTimeSearch.replace(/'/g, "''").replace(/%/g, '[%]').replace(/_/g, '[_]');
+      whereClauses.push(`CONVERT(VARCHAR(23), ModifiedOn, 121) LIKE N'%${escaped}%'`);
+    }
+
+    const whereSQL = 'WHERE ' + whereClauses.join(' AND ');
+    const result = await request.query(`SELECT TOP 5000 ModifiedOn, NewValueReal FROM dbo.DeviceDataView ${whereSQL} ORDER BY ModifiedOn ASC`);
+
+    // Sestavení xlsx pomocí ExcelJS
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Historian Web';
+    workbook.created = new Date();
+
+    const sheet = workbook.addWorksheet('Data grafu');
+
+    // Záhlaví
+    sheet.columns = [
+      { header: 'Zařízení', key: 'device', width: 35 },
+      { header: 'Vlastnost', key: 'property', width: 20 },
+      { header: 'Čas (UTC)', key: 'time', width: 22 },
+      { header: 'Nová hodnota', key: 'value', width: 16 },
+    ];
+
+    // Styl záhlaví
+    sheet.getRow(1).eachCell(cell => {
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2563EB' } };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    });
+
+    // Data
+    result.recordset.forEach(row => {
+      const dt = new Date(row.ModifiedOn);
+      sheet.addRow({
+        device,
+        property,
+        time: dt.toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
+        value: parseFloat(row.NewValueReal)
+      });
+    });
+
+    // Zamrazení záhlaví a filtr
+    sheet.views = [{ state: 'frozen', ySplit: 1 }];
+    sheet.autoFilter = { from: 'A1', to: 'D1' };
+
+    // Poznámka: ExcelJS nepodporuje přímé vytváření grafů při zápisu nového souboru.
+    // Uživatel si může graf snadno vytvořit v Excelu z exportovaných dat (Vložit -> Graf).
+
+    // Odešli soubor
+    const safeDevice = device.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 30);
+    const safeProperty = property.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 20);
+    const dateStr = new Date().toISOString().substring(0, 10);
+    const filename = `graf_${safeDevice}_${safeProperty}_${dateStr}.xlsx`;
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    await workbook.xlsx.write(res);
+    res.end();
+
+  } catch (err) {
+    console.error('Chyba /api/chart-data/excel:', err.message, err.stack);
+    res.status(500).json({ error: 'Chyba při generování Excel souboru: ' + err.message });
+  }
+});
+
 // Načtení dat (DeviceDataView)
 app.get('/api/devicedata', async (req, res) => {
   try {
