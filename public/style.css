@@ -26,6 +26,7 @@
 }
 
 body.dark-mode {
+  color-scheme: dark;
   --bg-color: #0f172a;
   --card-bg: #1e293b;
   --text-color: #f8fafc;
@@ -217,6 +218,13 @@ body.dark-mode .controls-header {
   margin-bottom: 0;
 }
 
+.saved-filters-group>i,
+.date-group>i,
+.page-length-group>i {
+  color: var(--primary-color);
+  font-size: 1.1rem;
+}
+
 /* MULTISELECT STYLING */
 .multiselect {
   position: relative;
@@ -341,6 +349,11 @@ select.form-select {
 select.form-select:focus {
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+body.dark-mode input[type="date"]::-webkit-calendar-picker-indicator,
+body.dark-mode input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: brightness(0) invert(1);
 }
 
 .search-box {

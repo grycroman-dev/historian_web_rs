@@ -36,7 +36,7 @@
     <div id="controlsContent" class="controls-content">
       <div class="filters-row">
         <!-- Saved Filters & Actions -->
-        <div class="saved-filters-group" style="display: flex; align-items: center; gap: 5px;">
+        <div class="saved-filters-group" style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
           <i class="fas fa-clock" title="Uložené filtry a čas"></i>
           <select id="savedFiltersSelect" class="form-select" style="min-width: 200px;">
             <option value="">-- Filtry a čas --</option>
@@ -47,7 +47,7 @@
         </div>
 
         <!-- Multiselects -->
-        <div class="multiselect-group" style="display: flex; gap: 5px;">
+        <div class="multiselect-group" style="display: flex; gap: 5px; flex-wrap: wrap;">
           <div class="multiselect">
             <button id="regionBtn" class="dropdown-btn"><i class="fas fa-globe-europe"></i> Region: Vše</button>
             <div id="regionList" class="multiselect-dropdown"></div>
@@ -76,8 +76,8 @@
       </div>
 
       <!-- Date Inputs (manual) -->
-      <div class="filters-row" style="margin-top: 10px; display: flex; gap: 10px; align-items: center;">
-        <div class="date-group" style="display: flex; gap: 5px; align-items: center;">
+      <div class="filters-row" style="margin-top: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <div class="date-group" style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap;">
           <i class="fas fa-calendar-alt"></i>
           <input type="date" id="dateFrom" class="form-input">
           <input type="time" id="timeFrom" class="form-input">
@@ -88,8 +88,8 @@
       </div>
 
       <div class="filters-row actions-row"
-        style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
-        <div class="search-box-wrapper" style="display: flex; gap: 10px; align-items: center;">
+        style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+        <div class="search-box-wrapper" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
           <div class="search-box">
             <i class="fas fa-search search-icon"></i>
             <input type="text" id="globalSearch" placeholder="Hledat..." class="form-input">
@@ -101,7 +101,7 @@
           </button>
         </div>
 
-        <div class="right-controls" style="display: flex; gap: 10px; align-items: center;">
+        <div class="right-controls" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
           <div class="auto-refresh" title="Auto-refresh (30s)">
             <i id="autoRefreshIcon" class="fas fa-sync"></i>
             <span class="small ms-1">VYP</span>
@@ -122,7 +122,7 @@
             <span class="small">BACKUP</span>
           </div>
 
-          <div class="page-length-group" style="display: flex; align-items: center; gap: 5px;">
+          <div class="page-length-group" style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
             <i class="fas fa-list-ol"></i>
             <select id="pageLengthSelect" class="form-select">
               <option value="10" selected>10 řádků</option>

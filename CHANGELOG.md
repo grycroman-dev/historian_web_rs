@@ -1,7 +1,10 @@
 # Changelog
 
-## 2.1.2 - 2026-02-19
+## 2.1.2 - 2026-02-20
 - **Opravy:**
+    - Oprava zobrazení verze aplikace v patičce (aktualizace package.json na 2.1.2).
+    - Oprava responzivity filtrů (přidán `flex-wrap` pro správné zalamování na malých displejích).
+    - Oprava viditelnosti ikon (přiřazena primární barva) a nativních ikon kalendáře/času v panelech nastavení v tmavém režimu (přidán invertující CSS filtr a color-scheme).
     - Oprava intervalu automatického obnovení dat z 5 sekund na 30 sekund (jak je uvedeno v UI).
     - Zvýšení viditelnosti zvýraznění nových záznamů (sytější barva a fallback pro případ selhání animace).
 
