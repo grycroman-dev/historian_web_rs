@@ -8,6 +8,10 @@
     - Oprava intervalu automatického obnovení dat z 5 sekund na 30 sekund (jak je uvedeno v UI).
     - Zvýšení viditelnosti zvýraznění nových záznamů (sytější barva a fallback pro případ selhání animace).
 - **Optimalizace výkonu:**
+    - Zásadní posun ve vyhledávání (Search): Algoritmus pro zjišťování shod (LIKE '%hledání%') byl přepsán. Server místo extrémně výpočetně náročného prohledávání 10 miliónů řádků napříč 6 spojenými tabulkami (pomocí operátoru `OR`) nyní využívá instatní asynchronní metodu "Pre-fetch" – nejdřív se rychlým zlomkem vteřiny podívá do číselníků, vytáhne si příslušná unikátní `Id` a pro obrovskou tabulku použije klauzuli `IN`. Vyhledávání řetězců jako `"test"` kleslo z desítek vteřin na hranici zhruba 2 vteřin.
+    - Optimalizace databáze: Sloupce `OldValueReal` a `NewValueReal` se nyní počítají přímo do tabulky `DeviceData` (a jejich automatický výpočet běží v SQL proceduře `SaveData` při ukládání záznamu) místo toho, aby se dynamicky pro obrovská množství dat přepočítávaly až v dotazu na pohled (VIEW). Nyní byly dodatečně upraveny s podmínkou `NOT NULL` a výpočetní bloky `ISNULL` a `CASE` byly z pohledu `DeviceDataView` zcela odebrány.
+    - Zvýšen časový limit (timeout) pro dlouhotrvající a komplexní vyhledávací operace u SQL databáze ze standardních 15 na 60 sekund (zabrání se tak chybě `Request failed to complete in 15000ms`).
+    - Zásadní zrychlení globálního a sloupcového vyhledávání odstraněním vynucené verifikace `COLLATE Latin1_General_CI_AI` a vynecháním `CAST()` operací v případě, že vyhledávaný výraz neobsahuje číslice nebo znaky data. Výrazně klesla zátěž na databázi při prohledávání miliónů záznamů.
     - Optimalizace rychlosti načítání tabulky: Výpočet globálních statistik (dashboard) byl oddělen do samostatného asynchronního požadavku (`/api/stats`), takže již neblokuje a nezdržuje hlavní načítání dat záznamů.
 
 ## 2.1.1 - 2026-02-19

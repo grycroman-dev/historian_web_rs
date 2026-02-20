@@ -338,18 +338,45 @@ app.get('/api/devicedata', async (req, res) => {
 
     if (searchValue) {
       const escapedSearch = escapeSqlString(escapeLike(searchValue));
-      whereConditions.push(`(
-        CAST(Id AS NVARCHAR(MAX)) LIKE N'%${escapedSearch}%' OR
-        CONVERT(VARCHAR(23), ModifiedOn, 121) LIKE N'%${escapedSearch}%' OR
-        Name LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        DeviceRegion LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        DeviceLocality LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        Frequency LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        DeviceType LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        DeviceProperty LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        OldValue LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        NewValue LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI
-      )`);
+      const prefetchReq = pool.request();
+      const devRes = await prefetchReq.query(`
+        SELECT D.Id FROM dbo.Device D 
+        LEFT JOIN dbo.DeviceLocality DL ON DL.Id=D.DeviceLocalityId 
+        LEFT JOIN dbo.DeviceRegion DR ON DR.Id=D.DeviceRegionId 
+        LEFT JOIN dbo.DeviceType DT ON DT.Id=D.DeviceTypeId 
+        WHERE D.Name LIKE N'%${escapedSearch}%' OR D.Frequency LIKE N'%${escapedSearch}%' 
+           OR DL.Name LIKE N'%${escapedSearch}%' OR DR.Name LIKE N'%${escapedSearch}%' OR DT.Name LIKE N'%${escapedSearch}%'
+      `);
+      const matchedDeviceIds = devRes.recordset.map(r => r.Id);
+
+      const propRes = await prefetchReq.query(`
+        SELECT Name FROM dbo.DeviceProperty WHERE Name LIKE N'%${escapedSearch}%'
+      `);
+      const matchedPropNames = propRes.recordset.map(r => `N'${escapeSqlString(r.Name)}'`);
+
+      let globSearch = [
+        `OldValue LIKE N'%${escapedSearch}%'`,
+        `NewValue LIKE N'%${escapedSearch}%'`
+      ];
+
+      if (matchedDeviceIds.length > 0) {
+        globSearch.push(`DeviceId IN (${matchedDeviceIds.join(',')})`);
+      }
+      if (matchedPropNames.length > 0) {
+        globSearch.push(`DeviceProperty IN (${matchedPropNames.join(',')})`);
+      }
+
+      // Optimalizace: Id vyhledáváme jen když jde o celé číslo (bez CASTu)
+      if (/^\\d+$/.test(searchValue)) {
+        globSearch.push(`Id = ${parseInt(searchValue)}`);
+      }
+
+      // Optimalizace: Datum vyhledáváme jen když řetězec obsahuje znaky typické pro datum
+      if (/^[0-9\\-\\ \\:\\.]+$/.test(searchValue)) {
+        globSearch.push(`CONVERT(VARCHAR(23), ModifiedOn, 121) LIKE N'%${escapedSearch}%'`);
+      }
+
+      whereConditions.push(`(${globSearch.join(' OR ')})`);
     }
 
     for (let i = 0; i < columns.length; i++) {
@@ -357,9 +384,15 @@ app.get('/api/devicedata', async (req, res) => {
       if (val && val.trim() !== '') {
         const colName = columns[i];
         const escapedVal = escapeSqlString(escapeLike(val));
-        if (colName === 'Id' || colName === 'Frequency' || colName === 'OldValueReal' || colName === 'NewValueReal') whereConditions.push(`CAST(${colName} AS NVARCHAR(MAX)) LIKE N'%${escapedVal}%' COLLATE Latin1_General_CI_AI`);
-        else if (colName === 'ModifiedOn') whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapedVal}%'`);
-        else whereConditions.push(`${colName} LIKE N'%${escapedVal}%' COLLATE Latin1_General_CI_AI`);
+        if (colName === 'Id') {
+          if (/^\d+$/.test(val)) whereConditions.push(`Id = ${parseInt(val)}`);
+        } else if (colName === 'Frequency' || colName === 'OldValueReal' || colName === 'NewValueReal') {
+          whereConditions.push(`CAST(${colName} AS NVARCHAR(MAX)) LIKE N'%${escapedVal}%'`);
+        } else if (colName === 'ModifiedOn') {
+          whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapedVal}%'`);
+        } else {
+          whereConditions.push(`${colName} LIKE N'%${escapedVal}%'`);
+        }
       }
     }
 
@@ -432,18 +465,42 @@ app.get('/api/stats', async (req, res) => {
 
     if (searchValue) {
       const escapedSearch = escapeSqlString(escapeLike(searchValue));
-      whereConditions.push(`(
-        CAST(Id AS NVARCHAR(MAX)) LIKE N'%${escapedSearch}%' OR
-        CONVERT(VARCHAR(23), ModifiedOn, 121) LIKE N'%${escapedSearch}%' OR
-        Name LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        DeviceRegion LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        DeviceLocality LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        Frequency LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        DeviceType LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        DeviceProperty LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        OldValue LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        NewValue LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI
-      )`);
+      const prefetchReq = pool.request();
+      const devRes = await prefetchReq.query(`
+        SELECT D.Id FROM dbo.Device D 
+        LEFT JOIN dbo.DeviceLocality DL ON DL.Id=D.DeviceLocalityId 
+        LEFT JOIN dbo.DeviceRegion DR ON DR.Id=D.DeviceRegionId 
+        LEFT JOIN dbo.DeviceType DT ON DT.Id=D.DeviceTypeId 
+        WHERE D.Name LIKE N'%${escapedSearch}%' OR D.Frequency LIKE N'%${escapedSearch}%' 
+           OR DL.Name LIKE N'%${escapedSearch}%' OR DR.Name LIKE N'%${escapedSearch}%' OR DT.Name LIKE N'%${escapedSearch}%'
+      `);
+      const matchedDeviceIds = devRes.recordset.map(r => r.Id);
+
+      const propRes = await prefetchReq.query(`
+        SELECT Name FROM dbo.DeviceProperty WHERE Name LIKE N'%${escapedSearch}%'
+      `);
+      const matchedPropNames = propRes.recordset.map(r => `N'${escapeSqlString(r.Name)}'`);
+
+      let globSearch = [
+        `OldValue LIKE N'%${escapedSearch}%'`,
+        `NewValue LIKE N'%${escapedSearch}%'`
+      ];
+
+      if (matchedDeviceIds.length > 0) {
+        globSearch.push(`DeviceId IN (${matchedDeviceIds.join(',')})`);
+      }
+      if (matchedPropNames.length > 0) {
+        globSearch.push(`DeviceProperty IN (${matchedPropNames.join(',')})`);
+      }
+
+      if (/^\d+$/.test(searchValue)) {
+        globSearch.push(`Id = ${parseInt(searchValue)}`);
+      }
+      if (/^[0-9\-\ \:\.]+$/.test(searchValue)) {
+        globSearch.push(`CONVERT(VARCHAR(23), ModifiedOn, 121) LIKE N'%${escapedSearch}%'`);
+      }
+
+      whereConditions.push(`(${globSearch.join(' OR ')})`);
     }
 
     for (let i = 0; i < columns.length; i++) {
@@ -451,9 +508,15 @@ app.get('/api/stats', async (req, res) => {
       if (val && val.trim() !== '') {
         const colName = columns[i];
         const escapedVal = escapeSqlString(escapeLike(val));
-        if (colName === 'Id' || colName === 'Frequency' || colName === 'OldValueReal' || colName === 'NewValueReal') whereConditions.push(`CAST(${colName} AS NVARCHAR(MAX)) LIKE N'%${escapedVal}%' COLLATE Latin1_General_CI_AI`);
-        else if (colName === 'ModifiedOn') whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapedVal}%'`);
-        else whereConditions.push(`${colName} LIKE N'%${escapedVal}%' COLLATE Latin1_General_CI_AI`);
+        if (colName === 'Id') {
+          if (/^\d+$/.test(val)) whereConditions.push(`Id = ${parseInt(val)}`);
+        } else if (colName === 'Frequency' || colName === 'OldValueReal' || colName === 'NewValueReal') {
+          whereConditions.push(`CAST(${colName} AS NVARCHAR(MAX)) LIKE N'%${escapedVal}%'`);
+        } else if (colName === 'ModifiedOn') {
+          whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapedVal}%'`);
+        } else {
+          whereConditions.push(`${colName} LIKE N'%${escapedVal}%'`);
+        }
       }
     }
 
@@ -524,18 +587,25 @@ app.get('/api/devicedata/csv', async (req, res) => {
 
     if (searchValue) {
       const escapedSearch = escapeSqlString(escapeLike(searchValue));
-      whereConditions.push(`(
-        CAST(Id AS NVARCHAR(MAX)) LIKE N'%${escapedSearch}%' OR
-        CONVERT(VARCHAR(23), ModifiedOn, 121) LIKE N'%${escapedSearch}%' OR
-        Name LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        DeviceRegion LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        DeviceLocality LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        Frequency LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        DeviceType LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        DeviceProperty LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        OldValue LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        NewValue LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI
-      )`);
+      let globSearch = [
+        `Name LIKE N'%${escapedSearch}%'`,
+        `DeviceRegion LIKE N'%${escapedSearch}%'`,
+        `DeviceLocality LIKE N'%${escapedSearch}%'`,
+        `Frequency LIKE N'%${escapedSearch}%'`,
+        `DeviceType LIKE N'%${escapedSearch}%'`,
+        `DeviceProperty LIKE N'%${escapedSearch}%'`,
+        `OldValue LIKE N'%${escapedSearch}%'`,
+        `NewValue LIKE N'%${escapedSearch}%'`
+      ];
+
+      if (/^\d+$/.test(searchValue)) {
+        globSearch.push(`Id = ${parseInt(searchValue)}`);
+      }
+      if (/^[0-9\-\ \:\.]+$/.test(searchValue)) {
+        globSearch.push(`CONVERT(VARCHAR(23), ModifiedOn, 121) LIKE N'%${escapedSearch}%'`);
+      }
+
+      whereConditions.push(`(${globSearch.join(' OR ')})`);
     }
 
     for (let i = 0; i < columns.length; i++) {
@@ -543,9 +613,15 @@ app.get('/api/devicedata/csv', async (req, res) => {
       if (val && val.trim() !== '') {
         const colName = columns[i];
         const escapedVal = escapeSqlString(escapeLike(val));
-        if (colName === 'Id' || colName === 'Frequency' || colName === 'OldValueReal' || colName === 'NewValueReal') whereConditions.push(`CAST(${colName} AS NVARCHAR(MAX)) LIKE N'%${escapedVal}%' COLLATE Latin1_General_CI_AI`);
-        else if (colName === 'ModifiedOn') whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapedVal}%'`);
-        else whereConditions.push(`${colName} LIKE N'%${escapedVal}%' COLLATE Latin1_General_CI_AI`);
+        if (colName === 'Id') {
+          if (/^\d+$/.test(val)) whereConditions.push(`Id = ${parseInt(val)}`);
+        } else if (colName === 'Frequency' || colName === 'OldValueReal' || colName === 'NewValueReal') {
+          whereConditions.push(`CAST(${colName} AS NVARCHAR(MAX)) LIKE N'%${escapedVal}%'`);
+        } else if (colName === 'ModifiedOn') {
+          whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapedVal}%'`);
+        } else {
+          whereConditions.push(`${colName} LIKE N'%${escapedVal}%'`);
+        }
       }
     }
 
@@ -644,18 +720,42 @@ app.get('/api/devicedata/xlsx', async (req, res) => {
 
     if (searchValue) {
       const escapedSearch = escapeSqlString(escapeLike(searchValue));
-      whereConditions.push(`(
-        CAST(Id AS NVARCHAR(MAX)) LIKE N'%${escapedSearch}%' OR
-        CONVERT(VARCHAR(23), ModifiedOn, 121) LIKE N'%${escapedSearch}%' OR
-        Name LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        DeviceRegion LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        DeviceLocality LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        Frequency LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        DeviceType LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        DeviceProperty LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        OldValue LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
-        NewValue LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI
-      )`);
+      const prefetchReq = pool.request();
+      const devRes = await prefetchReq.query(`
+        SELECT D.Id FROM dbo.Device D 
+        LEFT JOIN dbo.DeviceLocality DL ON DL.Id=D.DeviceLocalityId 
+        LEFT JOIN dbo.DeviceRegion DR ON DR.Id=D.DeviceRegionId 
+        LEFT JOIN dbo.DeviceType DT ON DT.Id=D.DeviceTypeId 
+        WHERE D.Name LIKE N'%${escapedSearch}%' OR D.Frequency LIKE N'%${escapedSearch}%' 
+           OR DL.Name LIKE N'%${escapedSearch}%' OR DR.Name LIKE N'%${escapedSearch}%' OR DT.Name LIKE N'%${escapedSearch}%'
+      `);
+      const matchedDeviceIds = devRes.recordset.map(r => r.Id);
+
+      const propRes = await prefetchReq.query(`
+        SELECT Name FROM dbo.DeviceProperty WHERE Name LIKE N'%${escapedSearch}%'
+      `);
+      const matchedPropNames = propRes.recordset.map(r => `N'${escapeSqlString(r.Name)}'`);
+
+      let globSearch = [
+        `OldValue LIKE N'%${escapedSearch}%'`,
+        `NewValue LIKE N'%${escapedSearch}%'`
+      ];
+
+      if (matchedDeviceIds.length > 0) {
+        globSearch.push(`DeviceId IN (${matchedDeviceIds.join(',')})`);
+      }
+      if (matchedPropNames.length > 0) {
+        globSearch.push(`DeviceProperty IN (${matchedPropNames.join(',')})`);
+      }
+
+      if (/^\d+$/.test(searchValue)) {
+        globSearch.push(`Id = ${parseInt(searchValue)}`);
+      }
+      if (/^[0-9\-\ \:\.]+$/.test(searchValue)) {
+        globSearch.push(`CONVERT(VARCHAR(23), ModifiedOn, 121) LIKE N'%${escapedSearch}%'`);
+      }
+
+      whereConditions.push(`(${globSearch.join(' OR ')})`);
     }
 
     for (let i = 0; i < columns.length; i++) {
@@ -663,9 +763,15 @@ app.get('/api/devicedata/xlsx', async (req, res) => {
       if (val && val.trim() !== '') {
         const colName = columns[i];
         const escapedVal = escapeSqlString(escapeLike(val));
-        if (colName === 'Id' || colName === 'Frequency' || colName === 'OldValueReal' || colName === 'NewValueReal') whereConditions.push(`CAST(${colName} AS NVARCHAR(MAX)) LIKE N'%${escapedVal}%' COLLATE Latin1_General_CI_AI`);
-        else if (colName === 'ModifiedOn') whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapedVal}%'`);
-        else whereConditions.push(`${colName} LIKE N'%${escapedVal}%' COLLATE Latin1_General_CI_AI`);
+        if (colName === 'Id') {
+          if (/^\d+$/.test(val)) whereConditions.push(`Id = ${parseInt(val)}`);
+        } else if (colName === 'Frequency' || colName === 'OldValueReal' || colName === 'NewValueReal') {
+          whereConditions.push(`CAST(${colName} AS NVARCHAR(MAX)) LIKE N'%${escapedVal}%'`);
+        } else if (colName === 'ModifiedOn') {
+          whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapedVal}%'`);
+        } else {
+          whereConditions.push(`${colName} LIKE N'%${escapedVal}%'`);
+        }
       }
     }
 

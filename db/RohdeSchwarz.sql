@@ -85,6 +85,8 @@ CREATE TABLE [dbo].[DeviceData](
 	[DevicePropertyId] [int] NOT NULL,
 	[OldValue] [nvarchar](250) NOT NULL,
 	[NewValue] [nvarchar](250) NOT NULL,
+	[OldValueReal] [real] NOT NULL,
+	[NewValueReal] [real] NOT NULL,
  CONSTRAINT [PK_DeviceData] PRIMARY KEY CLUSTERED 
 (
 	[Id] ASC
@@ -187,14 +189,8 @@ SELECT DD.[Id]
 	  ,DP.[Name] AS [DeviceProperty]      
       ,DD.[OldValue]
       ,DD.[NewValue]
-      ,CASE 
-          WHEN DP.[Type] = 'STRING' THEN CAST(0 AS REAL)
-          ELSE TRY_CAST(REPLACE(DD.[OldValue], ',', '.') AS REAL)
-       END AS [OldValueReal]
-      ,CASE 
-          WHEN DP.[Type] = 'STRING' THEN CAST(0 AS REAL)
-          ELSE TRY_CAST(REPLACE(DD.[NewValue], ',', '.') AS REAL)
-       END AS [NewValueReal]
+      ,DD.[OldValueReal]
+      ,DD.[NewValueReal]
 	  ,DD.[DeviceId]
   FROM [dbo].[DeviceData] AS DD WITH (NOLOCK)
   LEFT OUTER JOIN [dbo].[Device] AS D WITH (NOLOCK) ON D.[Id] = DD.[DeviceId]
@@ -260,6 +256,7 @@ CREATE PROCEDURE [dbo].[SaveData]
 	@Frequency nvarchar(250),
 	@Type nvarchar(250),
 	@Property nvarchar(250),
+	@PropertyType nvarchar(250),
 	@OldValue nvarchar(250),
 	@NewValue nvarchar(250)
 AS
@@ -323,15 +320,29 @@ BEGIN
 	IF (@Property = 'RX_RSSI')
 		SET @CanInsert = [dbo].[fn_FilterSelectedValue] (@NewValue, @PropertyId, @DeviceId, 2)
 	
-	IF (@CanInsert = 1)
+	IF (@CanInsert = 1) BEGIN
+	    DECLARE @OldValueReal REAL
+	    DECLARE @NewValueReal REAL
+
+	    IF @PropertyType = 'STRING' BEGIN
+		    SET @OldValueReal = 0
+		    SET @NewValueReal = 0
+	    END ELSE BEGIN
+		    SET @OldValueReal = TRY_CAST(REPLACE(@OldValue, ',', '.') AS REAL)
+		    SET @NewValueReal = TRY_CAST(REPLACE(@NewValue, ',', '.') AS REAL)
+	    END
+
 		INSERT INTO [dbo].[DeviceData]
 			   ([ModifiedOn]
 			   ,[DeviceId]
 			   ,[DevicePropertyId]
 			   ,[OldValue]
-			   ,[NewValue])
+			   ,[NewValue]
+			   ,[OldValueReal]
+			   ,[NewValueReal])
 		 VALUES
-			   (@ModifiedOn, @DeviceId, @PropertyId, @OldValue, @NewValue)
+			   (@ModifiedOn, @DeviceId, @PropertyId, @OldValue, @NewValue, @OldValueReal, @NewValueReal)
+    END
 	
 	COMMIT TRANSACTION
 

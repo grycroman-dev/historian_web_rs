@@ -5,6 +5,7 @@ const mainConfig = {
   password: 'contrans',
   server: '127.0.0.1',
   database: 'RohdeSchwarz',
+  requestTimeout: 60000,
   options: { encrypt: false, trustServerCertificate: true }
 };
 
@@ -13,6 +14,7 @@ const backupConfig = {
   password: 'contrans',
   server: '127.0.0.1', // Zde zadejte IP zalozniho serveru
   database: 'RohdeSchwarz',
+  requestTimeout: 60000,
   options: { encrypt: false, trustServerCertificate: true }
 };
 
