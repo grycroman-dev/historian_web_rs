@@ -7,6 +7,8 @@
     - Oprava viditelnosti ikon (přiřazena primární barva) a nativních ikon kalendáře/času v panelech nastavení v tmavém režimu (přidán invertující CSS filtr a color-scheme).
     - Oprava intervalu automatického obnovení dat z 5 sekund na 30 sekund (jak je uvedeno v UI).
     - Zvýšení viditelnosti zvýraznění nových záznamů (sytější barva a fallback pro případ selhání animace).
+- **Optimalizace výkonu:**
+    - Optimalizace rychlosti načítání tabulky: Výpočet globálních statistik (dashboard) byl oddělen do samostatného asynchronního požadavku (`/api/stats`), takže již neblokuje a nezdržuje hlavní načítání dat záznamů.
 
 ## 2.1.1 - 2026-02-19
 - **Opravy:**

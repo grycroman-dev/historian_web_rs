@@ -383,39 +383,11 @@ app.get('/api/devicedata', async (req, res) => {
 
     const dataRes = await requestParams.query(dataQuery);
 
-    // --- Real-time Stats ---
-    let stats = { count1h: 0, count24h: 0, topDevice: '-', topProperty: '-', topFrequency: '-' };
-    try {
-      const statsQuery = `
-        SELECT 
-          COUNT(CASE WHEN ModifiedOn >= DATEADD(hour, -1, GETUTCDATE()) THEN 1 END) as count1h,
-          COUNT(CASE WHEN ModifiedOn >= DATEADD(day, -1, GETUTCDATE()) THEN 1 END) as count24h
-        FROM dbo.DeviceDataView ${whereClause};
-
-        SELECT TOP 1 Name as val FROM dbo.DeviceDataView ${whereClause} GROUP BY Name ORDER BY COUNT(*) DESC;
-        SELECT TOP 1 DeviceProperty as val FROM dbo.DeviceDataView ${whereClause} GROUP BY DeviceProperty ORDER BY COUNT(*) DESC;
-        SELECT TOP 1 Frequency as val FROM dbo.DeviceDataView ${whereClause} GROUP BY Frequency ORDER BY COUNT(*) DESC;
-      `;
-      const statsRes = await requestParams.query(statsQuery);
-
-      if (statsRes.recordsets && statsRes.recordsets.length >= 4) {
-        const counts = statsRes.recordsets[0][0];
-        stats.count1h = counts.count1h;
-        stats.count24h = counts.count24h;
-        stats.topDevice = statsRes.recordsets[1][0]?.val || '-';
-        stats.topProperty = statsRes.recordsets[2][0]?.val || '-';
-        stats.topFrequency = statsRes.recordsets[3][0]?.val || '-';
-      }
-    } catch (sErr) {
-      console.error('Chyba při výpočtu statistik:', sErr);
-    }
-
     res.json({
       draw,
       recordsTotal,
       recordsFiltered,
-      data: dataRes.recordset,
-      stats
+      data: dataRes.recordset
     });
 
   } catch (err) {
@@ -427,6 +399,92 @@ app.get('/api/devicedata', async (req, res) => {
       data: [],
       error: 'Chyba při načítání dat: ' + err.message
     });
+  }
+});
+
+// --- Získání statistik (asynchronně vůči tabulce) ---
+app.get('/api/stats', async (req, res) => {
+  try {
+    const dataSource = req.query.dataSource || 'main';
+    const pool = await getPool(dataSource);
+
+    const searchValue = req.query['search[value]'] || '';
+    const columns = [
+      'Id', 'ModifiedOn', 'Name', 'DeviceRegion', 'DeviceLocality',
+      'Frequency', 'DeviceType', 'DeviceProperty', 'OldValue', 'NewValue',
+      'OldValueReal', 'NewValueReal'
+    ];
+
+    let whereConditions = [];
+    const requestParams = pool.request();
+
+    addFilter(requestParams, whereConditions, 'region', 'DeviceRegion', req.query.region || req.query['region[]']);
+    addFilter(requestParams, whereConditions, 'locality', 'DeviceLocality', req.query.locality || req.query['locality[]']);
+    addFilter(requestParams, whereConditions, 'type', 'DeviceType', req.query.type || req.query['type[]']);
+    addFilter(requestParams, whereConditions, 'property', 'DeviceProperty', req.query.property || req.query['property[]']);
+    addFilter(requestParams, whereConditions, 'frequency', 'Frequency', req.query.frequency || req.query['frequency[]']);
+    addFilter(requestParams, whereConditions, 'device', 'Name', req.query.device || req.query['device[]']);
+
+    if (req.query.dateFrom) { requestParams.input('dateFrom', sql.Date, req.query.dateFrom); whereConditions.push('CAST(ModifiedOn AS DATE) >= @dateFrom'); }
+    if (req.query.dateTo) { requestParams.input('dateTo', sql.Date, req.query.dateTo); whereConditions.push('CAST(ModifiedOn AS DATE) <= @dateTo'); }
+    if (req.query.timeFrom && req.query.timeFrom.trim() !== '') { requestParams.input('timeFrom', sql.VarChar(5), req.query.timeFrom); whereConditions.push("CONVERT(CHAR(5), ModifiedOn, 108) >= @timeFrom"); }
+    if (req.query.timeTo && req.query.timeTo.trim() !== '') { requestParams.input('timeTo', sql.VarChar(5), req.query.timeTo); whereConditions.push("CONVERT(CHAR(5), ModifiedOn, 108) <= @timeTo"); }
+
+    if (searchValue) {
+      const escapedSearch = escapeSqlString(escapeLike(searchValue));
+      whereConditions.push(`(
+        CAST(Id AS NVARCHAR(MAX)) LIKE N'%${escapedSearch}%' OR
+        CONVERT(VARCHAR(23), ModifiedOn, 121) LIKE N'%${escapedSearch}%' OR
+        Name LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
+        DeviceRegion LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
+        DeviceLocality LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
+        Frequency LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
+        DeviceType LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
+        DeviceProperty LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
+        OldValue LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI OR
+        NewValue LIKE N'%${escapedSearch}%' COLLATE Latin1_General_CI_AI
+      )`);
+    }
+
+    for (let i = 0; i < columns.length; i++) {
+      const val = req.query['col' + i];
+      if (val && val.trim() !== '') {
+        const colName = columns[i];
+        const escapedVal = escapeSqlString(escapeLike(val));
+        if (colName === 'Id' || colName === 'Frequency' || colName === 'OldValueReal' || colName === 'NewValueReal') whereConditions.push(`CAST(${colName} AS NVARCHAR(MAX)) LIKE N'%${escapedVal}%' COLLATE Latin1_General_CI_AI`);
+        else if (colName === 'ModifiedOn') whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapedVal}%'`);
+        else whereConditions.push(`${colName} LIKE N'%${escapedVal}%' COLLATE Latin1_General_CI_AI`);
+      }
+    }
+
+    const whereClause = whereConditions.length ? 'WHERE ' + whereConditions.join(' AND ') : '';
+
+    let stats = { count1h: 0, count24h: 0, topDevice: '-', topProperty: '-', topFrequency: '-' };
+    const statsQuery = `
+      SELECT 
+        COUNT(CASE WHEN ModifiedOn >= DATEADD(hour, -1, GETUTCDATE()) THEN 1 END) as count1h,
+        COUNT(CASE WHEN ModifiedOn >= DATEADD(day, -1, GETUTCDATE()) THEN 1 END) as count24h
+      FROM dbo.DeviceDataView ${whereClause};
+
+      SELECT TOP 1 Name as val FROM dbo.DeviceDataView ${whereClause} GROUP BY Name ORDER BY COUNT(*) DESC;
+      SELECT TOP 1 DeviceProperty as val FROM dbo.DeviceDataView ${whereClause} GROUP BY DeviceProperty ORDER BY COUNT(*) DESC;
+      SELECT TOP 1 Frequency as val FROM dbo.DeviceDataView ${whereClause} GROUP BY Frequency ORDER BY COUNT(*) DESC;
+    `;
+    const statsRes = await requestParams.query(statsQuery);
+
+    if (statsRes.recordsets && statsRes.recordsets.length >= 4) {
+      const counts = statsRes.recordsets[0][0];
+      stats.count1h = counts.count1h;
+      stats.count24h = counts.count24h;
+      stats.topDevice = statsRes.recordsets[1][0]?.val || '-';
+      stats.topProperty = statsRes.recordsets[2][0]?.val || '-';
+      stats.topFrequency = statsRes.recordsets[3][0]?.val || '-';
+    }
+
+    res.json(stats);
+  } catch (err) {
+    console.error('Chyba při výpočtu statistik:', err);
+    res.status(500).json({ error: 'Chyba při výpočtu statistik' });
   }
 });
 

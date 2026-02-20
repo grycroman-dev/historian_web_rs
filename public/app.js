@@ -842,15 +842,20 @@ $(document).ready(function () {
       const utcString = now.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
       $('#lastUpdate').text(utcString);
 
-      // Update Real-time Stats from server JSON response
-      const json = api.ajax.json();
-      if (json && json.stats) {
-        $('#statLastHour').text(json.stats.count1h.toLocaleString());
-        $('#statLast24h').text(json.stats.count24h.toLocaleString());
-        $('#statTopDevice').text(json.stats.topDevice).attr('title', json.stats.topDevice);
-        $('#statTopProperty').text(json.stats.topProperty).attr('title', json.stats.topProperty);
-        $('#statTopFrequency').text(json.stats.topFrequency).attr('title', json.stats.topFrequency);
-      }
+      // Fetch Real-time Stats from server asynchronously
+      $.ajax({
+        url: '/api/stats',
+        data: api.ajax.params(),
+        success: function (stats) {
+          if (stats) {
+            $('#statLastHour').text((stats.count1h || 0).toLocaleString());
+            $('#statLast24h').text((stats.count24h || 0).toLocaleString());
+            $('#statTopDevice').text(stats.topDevice || '-').attr('title', stats.topDevice || '-');
+            $('#statTopProperty').text(stats.topProperty || '-').attr('title', stats.topProperty || '-');
+            $('#statTopFrequency').text(stats.topFrequency || '-').attr('title', stats.topFrequency || '-');
+          }
+        }
+      });
     }
   });
 
