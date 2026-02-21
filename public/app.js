@@ -1449,8 +1449,17 @@ $(document).ready(function () {
     const globalSearch = $('#globalSearch').val();
     if (globalSearch) params.searchGlobal = globalSearch;
 
-    const colTimeFilter = $('#filter-col-1').val();
-    if (colTimeFilter) params.colTimeSearch = colTimeFilter;
+    // Přidání všech sloupcových filtrů (aby graf odpovídal tabulce)
+    $('.filter-input').each(function () {
+      const val = $(this).val();
+      if (val) {
+        const id = $(this).attr('id') || '';
+        const match = id.match(/filter-col-(\d+)/);
+        if (match) {
+          params['col' + match[1]] = val;
+        }
+      }
+    });
 
     $.get('/api/chart-data', params)
       .done(function (data) {
@@ -1508,10 +1517,19 @@ $(document).ready(function () {
     url += `&timeTo=${$('#timeTo').val()}`;
 
     const globalSearch = $('#globalSearch').val();
-    if (globalSearch) url += `&colTimeSearch=${encodeURIComponent(globalSearch)}`;
+    if (globalSearch) url += `&searchGlobal=${encodeURIComponent(globalSearch)}`;
 
-    const colTimeFilter = $('#filter-col-1').val();
-    if (colTimeFilter) url += `&colTimeSearch=${encodeURIComponent(colTimeFilter)}`;
+    // Přidání všech sloupcových filtrů
+    $('.filter-input').each(function () {
+      const val = $(this).val();
+      if (val) {
+        const id = $(this).attr('id') || '';
+        const match = id.match(/filter-col-(\d+)/);
+        if (match) {
+          url += `&col${match[1]}=${encodeURIComponent(val)}`;
+        }
+      }
+    });
 
     window.location.href = url;
   });

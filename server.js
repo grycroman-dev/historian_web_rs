@@ -221,10 +221,43 @@ app.get('/api/chart-data', async (req, res) => {
       request.input('timeTo', sql.VarChar(12), req.query.timeTo.replace('.', ':'));
       whereClauses.push("CONVERT(VARCHAR(12), ModifiedOn, 114) <= @timeTo");
     }
-    // Column text search na ModifiedOn (např. "09:4" z column filtru)
-    if (req.query.colTimeSearch && req.query.colTimeSearch.trim() !== '') {
-      const escaped = req.query.colTimeSearch.replace(/'/g, "''").replace(/%/g, '[%]').replace(/_/g, '[_]');
-      whereClauses.push(`CONVERT(VARCHAR(23), ModifiedOn, 121) LIKE N'%${escaped}%'`);
+    const columns = [
+      'Id', 'ModifiedOn', 'Name', 'DeviceRegion', 'DeviceLocality',
+      'Frequency', 'DeviceType', 'DeviceProperty', 'OldValue', 'NewValue',
+      'OldValueReal', 'NewValueReal'
+    ];
+
+    // Globální vyhledávání (pokud je zadáno)
+    if (req.query.searchGlobal) {
+      const search = req.query.searchGlobal;
+      const escaped = escapeSqlString(escapeLike(search));
+      let globConditions = [
+        `OldValue LIKE N'%${escaped}%'`,
+        `NewValue LIKE N'%${escaped}%'`
+      ];
+      if (/^\d+$/.test(search)) {
+        globConditions.push(`Id = ${parseInt(search)}`);
+      }
+      if (/^[0-9\- \:\.]+$/.test(search)) {
+        whereClauses.push(`((${globConditions.join(' OR ')}) OR CONVERT(VARCHAR(23), ModifiedOn, 121) LIKE N'%${escaped}%')`);
+      } else {
+        whereClauses.push(`(${globConditions.join(' OR ')})`);
+      }
+    }
+
+    // Sloupcové filtry
+    for (let i = 0; i < columns.length; i++) {
+      const val = req.query['col' + i];
+      if (val && val.trim() !== '') {
+        const colName = columns[i];
+        if (colName === 'Id' || colName === 'OldValueReal' || colName === 'NewValueReal') {
+          whereClauses.push(parseNumericFilter(colName, val));
+        } else if (colName === 'ModifiedOn') {
+          whereClauses.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
+        } else {
+          whereClauses.push(`${colName} LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
+        }
+      }
     }
 
     const whereSQL = whereClauses.length > 0 ? 'WHERE ' + whereClauses.join(' AND ') : '';
@@ -271,9 +304,38 @@ app.get('/api/chart-data/excel', async (req, res) => {
     if (req.query.dateTo) { request.input('dateTo', sql.Date, req.query.dateTo); whereClauses.push('CAST(ModifiedOn AS DATE) <= @dateTo'); }
     if (req.query.timeFrom && req.query.timeFrom.trim()) { request.input('timeFrom', sql.VarChar(12), req.query.timeFrom.replace('.', ':')); whereClauses.push("CONVERT(VARCHAR(12), ModifiedOn, 114) >= @timeFrom"); }
     if (req.query.timeTo && req.query.timeTo.trim()) { request.input('timeTo', sql.VarChar(12), req.query.timeTo.replace('.', ':')); whereClauses.push("CONVERT(VARCHAR(12), ModifiedOn, 114) <= @timeTo"); }
-    if (req.query.colTimeSearch && req.query.colTimeSearch.trim()) {
-      const escaped = req.query.colTimeSearch.replace(/'/g, "''").replace(/%/g, '[%]').replace(/_/g, '[_]');
-      whereClauses.push(`CONVERT(VARCHAR(23), ModifiedOn, 121) LIKE N'%${escaped}%'`);
+    const columns = [
+      'Id', 'ModifiedOn', 'Name', 'DeviceRegion', 'DeviceLocality',
+      'Frequency', 'DeviceType', 'DeviceProperty', 'OldValue', 'NewValue',
+      'OldValueReal', 'NewValueReal'
+    ];
+
+    // Globální vyhledávání
+    if (req.query.searchGlobal) {
+      const search = req.query.searchGlobal;
+      const escaped = escapeSqlString(escapeLike(search));
+      let globConditions = [`OldValue LIKE N'%${escaped}%'`, `NewValue LIKE N'%${escaped}%'`];
+      if (/^\d+$/.test(search)) globConditions.push(`Id = ${parseInt(search)}`);
+      if (/^[0-9\- \:\.]+$/.test(search)) {
+        whereClauses.push(`((${globConditions.join(' OR ')}) OR CONVERT(VARCHAR(23), ModifiedOn, 121) LIKE N'%${escaped}%')`);
+      } else {
+        whereClauses.push(`(${globConditions.join(' OR ')})`);
+      }
+    }
+
+    // Sloupcové filtry
+    for (let i = 0; i < columns.length; i++) {
+      const val = req.query['col' + i];
+      if (val && val.trim() !== '') {
+        const colName = columns[i];
+        if (colName === 'Id' || colName === 'OldValueReal' || colName === 'NewValueReal') {
+          whereClauses.push(parseNumericFilter(colName, val));
+        } else if (colName === 'ModifiedOn') {
+          whereClauses.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
+        } else {
+          whereClauses.push(`${colName} LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
+        }
+      }
     }
 
     const whereSQL = 'WHERE ' + whereClauses.join(' AND ');

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.8 - 2026-02-21
+- **Opravy:**
+    - Exporty z Grafu (CSV i Excel) nyní plně respektují stejné filtry jako samotný graf a tabulka (včetně sloupcových filtrů a globálního hledání).
+
+## 2.1.7 - 2026-02-21
+- **Opravy:**
+    - Graf nyní plně respektuje všechny aktivní sloupcové filtry (včetně ID, real hodnot atd.) a globální vyhledávání. Data v grafu tak vždy odpovídají tomu, co vidíte vyfiltrované v tabulce.
+
 ## 2.1.6 - 2026-02-21
 - **Vylepšení:**
     - Zpoždění automatického vyhledávání po stisku klávesy prodlouženo na 800ms (pohodlnější dopisování filtru).
