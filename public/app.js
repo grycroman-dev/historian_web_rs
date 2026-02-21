@@ -8,7 +8,8 @@ $(document).ready(function () {
   // --- Configuration ---
   const CONFIG = {
     NEW_RECORD_HIGHLIGHT_DURATION: 5000, // ms - How long the green highlight stays
-    REFRESH_INTERVAL: 30000 // ms
+    REFRESH_INTERVAL: 30000, // ms
+    SEARCH_DEBOUNCE: 800 // ms
   };
 
   // --- 1. Theme Toggle Logic ---
@@ -981,7 +982,7 @@ $(document).ready(function () {
   searchInput.on('keyup', function () {
     toggleClearSearchBtn();
     clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(refreshTable, 400);
+    searchTimeout = setTimeout(refreshTable, CONFIG.SEARCH_DEBOUNCE);
   });
 
   clearSearchBtn.on('click', function () {
@@ -992,7 +993,7 @@ $(document).ready(function () {
 
   $('.filter-input').on('keyup change', function () {
     clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(refreshTable, 400);
+    searchTimeout = setTimeout(refreshTable, CONFIG.SEARCH_DEBOUNCE);
   });
 
   const savedPageLen = localStorage.getItem('historian_page_len') || '10';

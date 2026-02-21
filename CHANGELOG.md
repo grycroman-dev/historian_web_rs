@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.1.6 - 2026-02-21
+- **Vylepšení:**
+    - Zpoždění automatického vyhledávání po stisku klávesy prodlouženo na 800ms (pohodlnější dopisování filtru).
+    - Oprava stability číselného filtrování ve sloupcích.
+    - Robustnější parsování operátorů (`<`, `>`, `..`) s podporou mezer i uvozovek.
+    - Oprava rozsahů: Nyní funguje jak `..`, tak klasická pomlčka `-` (např. `10-20` nebo `-116..-121`).
+    - Automatické seřazení mezí v rozsahu (vždy najde cestu od menšího k většímu číslu).
+
+## 2.1.5 - 2026-02-21
+- **Novinky:**
+    - Pokročilé filtrování číselných hodnot (`Id`, `OldValueReal`, `NewValueReal`). 
+    - Podpora operátorů: `>`, `<`, `>=`, `<=`, `=`, a rozsahů pomocí `..` (např. `10..20` pro hodnoty mezi 10 a 20).
+    - Funguje ve všech částech aplikace: hlavní tabulka, statistiky i exporty do CSV/Excel.
+
 ## 2.1.4 - 2026-02-21
 - **Novinky:**
     - Zobrazení milisekund v celém systému (tabulka, exporty, grafy).

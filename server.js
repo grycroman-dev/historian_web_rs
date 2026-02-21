@@ -50,6 +50,60 @@ function addFilter(requestParams, whereConditions, paramName, dbColumn, values) 
   }
 }
 
+// Pomocná funkce pro parsování číselných filtrů (podporuje >, <, >=, <=, =, 10..20)
+function parseNumericFilter(colName, val) {
+  if (!val) return null;
+  // Očištění vstupu (odstranění uvozovek, mezer, převod čárky na tečku)
+  val = val.trim().replace(/["']/g, '').replace(',', '.').replace(/\s+/g, '');
+
+  // Rozsah: 10..20 nebo -116..-121
+  if (val.includes('..')) {
+    const parts = val.split('..');
+    const v1 = parseFloat(parts[0]);
+    const v2 = parseFloat(parts[1]);
+    if (!isNaN(v1) && !isNaN(v2)) {
+      const min = Math.min(v1, v2);
+      const max = Math.max(v1, v2);
+      return `(${colName} BETWEEN ${min} AND ${max})`;
+    }
+  }
+
+  // Rozsah s pomlčkou: 10-20 (podporuje i záporná čísla jako -10--5)
+  const dashMatch = val.match(/^([+-]?\d+(?:\.\d+)?)-([+-]?\d+(?:\.\d+)?)$/);
+  if (dashMatch) {
+    const v1 = parseFloat(dashMatch[1]);
+    const v2 = parseFloat(dashMatch[2]);
+    if (!isNaN(v1) && !isNaN(v2)) {
+      const min = Math.min(v1, v2);
+      const max = Math.max(v1, v2);
+      return `(${colName} BETWEEN ${min} AND ${max})`;
+    }
+  }
+
+  // Operátory: >=10, <5 atd.
+  // Regex: operátor následovaný číslem (volitelně s desetinnou tečkou a znaménkem)
+  const opMatch = val.match(/^(>=|<=|>|<|=)([+-]?\d*(\.\d+)?)$/);
+  if (opMatch) {
+    const op = opMatch[1];
+    const num = parseFloat(opMatch[2]);
+    if (!isNaN(num)) {
+      return `(${colName} ${op} ${num})`;
+    }
+  }
+
+  // Přesné číslo
+  if (/^[+-]?\d*(\.\d+)?$/.test(val)) {
+    const num = parseFloat(val);
+    if (!isNaN(num)) {
+      return `(${colName} = ${num})`;
+    }
+  }
+
+  // Fallback na LIKE (pro částečné vyhledávání jako v textu) - bezpečné escapování
+  const escapedVal = val.replace(/'/g, "''").replace(/%/g, '[%]').replace(/_/g, '[_]');
+  return `CAST(${colName} AS NVARCHAR(MAX)) LIKE N'%${escapedVal}%'`;
+}
+
 // Načtení filtrů (Region, Locality, Type, Property)
 app.get('/api/filters', async (req, res) => {
   try {
@@ -368,12 +422,12 @@ app.get('/api/devicedata', async (req, res) => {
       }
 
       // Optimalizace: Id vyhledáváme jen když jde o celé číslo (bez CASTu)
-      if (/^\\d+$/.test(searchValue)) {
+      if (/^\d+$/.test(searchValue)) {
         globSearch.push(`Id = ${parseInt(searchValue)}`);
       }
 
       // Optimalizace: Datum vyhledáváme jen když řetězec obsahuje znaky typické pro datum
-      if (/^[0-9\\-\\ \\:\\.]+$/.test(searchValue)) {
+      if (/^[0-9\- \:\.]+$/.test(searchValue)) {
         globSearch.push(`CONVERT(VARCHAR(23), ModifiedOn, 121) LIKE N'%${escapedSearch}%'`);
       }
 
@@ -385,19 +439,18 @@ app.get('/api/devicedata', async (req, res) => {
       if (val && val.trim() !== '') {
         const colName = columns[i];
         const escapedVal = escapeSqlString(escapeLike(val));
-        if (colName === 'Id') {
-          if (/^\d+$/.test(val)) whereConditions.push(`Id = ${parseInt(val)}`);
-        } else if (colName === 'Frequency' || colName === 'OldValueReal' || colName === 'NewValueReal') {
-          whereConditions.push(`CAST(${colName} AS NVARCHAR(MAX)) LIKE N'%${escapedVal}%'`);
+        if (colName === 'Id' || colName === 'OldValueReal' || colName === 'NewValueReal') {
+          whereConditions.push(parseNumericFilter(colName, val));
         } else if (colName === 'ModifiedOn') {
-          whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapedVal}%'`);
+          whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
         } else {
-          whereConditions.push(`${colName} LIKE N'%${escapedVal}%'`);
+          whereConditions.push(`${colName} LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
         }
       }
     }
 
     const whereClause = whereConditions.length ? 'WHERE ' + whereConditions.join(' AND ') : '';
+    console.log('DEBUG SQL:', whereClause);
 
     const totalRes = await pool.request().query('SELECT COUNT(*) AS cnt FROM dbo.DeviceDataView');
     const recordsTotal = totalRes.recordset[0].cnt;
@@ -512,14 +565,12 @@ app.get('/api/stats', async (req, res) => {
       if (val && val.trim() !== '') {
         const colName = columns[i];
         const escapedVal = escapeSqlString(escapeLike(val));
-        if (colName === 'Id') {
-          if (/^\d+$/.test(val)) whereConditions.push(`Id = ${parseInt(val)}`);
-        } else if (colName === 'Frequency' || colName === 'OldValueReal' || colName === 'NewValueReal') {
-          whereConditions.push(`CAST(${colName} AS NVARCHAR(MAX)) LIKE N'%${escapedVal}%'`);
+        if (colName === 'Id' || colName === 'OldValueReal' || colName === 'NewValueReal') {
+          whereConditions.push(parseNumericFilter(colName, val));
         } else if (colName === 'ModifiedOn') {
-          whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapedVal}%'`);
+          whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
         } else {
-          whereConditions.push(`${colName} LIKE N'%${escapedVal}%'`);
+          whereConditions.push(`${colName} LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
         }
       }
     }
@@ -618,14 +669,12 @@ app.get('/api/devicedata/csv', async (req, res) => {
       if (val && val.trim() !== '') {
         const colName = columns[i];
         const escapedVal = escapeSqlString(escapeLike(val));
-        if (colName === 'Id') {
-          if (/^\d+$/.test(val)) whereConditions.push(`Id = ${parseInt(val)}`);
-        } else if (colName === 'Frequency' || colName === 'OldValueReal' || colName === 'NewValueReal') {
-          whereConditions.push(`CAST(${colName} AS NVARCHAR(MAX)) LIKE N'%${escapedVal}%'`);
+        if (colName === 'Id' || colName === 'OldValueReal' || colName === 'NewValueReal') {
+          whereConditions.push(parseNumericFilter(colName, val));
         } else if (colName === 'ModifiedOn') {
-          whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapedVal}%'`);
+          whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
         } else {
-          whereConditions.push(`${colName} LIKE N'%${escapedVal}%'`);
+          whereConditions.push(`${colName} LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
         }
       }
     }
@@ -768,14 +817,12 @@ app.get('/api/devicedata/xlsx', async (req, res) => {
       if (val && val.trim() !== '') {
         const colName = columns[i];
         const escapedVal = escapeSqlString(escapeLike(val));
-        if (colName === 'Id') {
-          if (/^\d+$/.test(val)) whereConditions.push(`Id = ${parseInt(val)}`);
-        } else if (colName === 'Frequency' || colName === 'OldValueReal' || colName === 'NewValueReal') {
-          whereConditions.push(`CAST(${colName} AS NVARCHAR(MAX)) LIKE N'%${escapedVal}%'`);
+        if (colName === 'Id' || colName === 'OldValueReal' || colName === 'NewValueReal') {
+          whereConditions.push(parseNumericFilter(colName, val));
         } else if (colName === 'ModifiedOn') {
-          whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapedVal}%'`);
+          whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
         } else {
-          whereConditions.push(`${colName} LIKE N'%${escapedVal}%'`);
+          whereConditions.push(`${colName} LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
         }
       }
     }
