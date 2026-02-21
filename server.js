@@ -160,12 +160,12 @@ app.get('/api/chart-data', async (req, res) => {
       whereClauses.push('CAST(ModifiedOn AS DATE) <= @dateTo');
     }
     if (req.query.timeFrom && req.query.timeFrom.trim() !== '') {
-      request.input('timeFrom', sql.VarChar(5), req.query.timeFrom);
-      whereClauses.push("CONVERT(CHAR(5), ModifiedOn, 108) >= @timeFrom");
+      request.input('timeFrom', sql.VarChar(12), req.query.timeFrom.replace('.', ':'));
+      whereClauses.push("CONVERT(VARCHAR(12), ModifiedOn, 114) >= @timeFrom");
     }
     if (req.query.timeTo && req.query.timeTo.trim() !== '') {
-      request.input('timeTo', sql.VarChar(5), req.query.timeTo);
-      whereClauses.push("CONVERT(CHAR(5), ModifiedOn, 108) <= @timeTo");
+      request.input('timeTo', sql.VarChar(12), req.query.timeTo.replace('.', ':'));
+      whereClauses.push("CONVERT(VARCHAR(12), ModifiedOn, 114) <= @timeTo");
     }
     // Column text search na ModifiedOn (např. "09:4" z column filtru)
     if (req.query.colTimeSearch && req.query.colTimeSearch.trim() !== '') {
@@ -215,8 +215,8 @@ app.get('/api/chart-data/excel', async (req, res) => {
 
     if (req.query.dateFrom) { request.input('dateFrom', sql.Date, req.query.dateFrom); whereClauses.push('CAST(ModifiedOn AS DATE) >= @dateFrom'); }
     if (req.query.dateTo) { request.input('dateTo', sql.Date, req.query.dateTo); whereClauses.push('CAST(ModifiedOn AS DATE) <= @dateTo'); }
-    if (req.query.timeFrom && req.query.timeFrom.trim()) { request.input('timeFrom', sql.VarChar(5), req.query.timeFrom); whereClauses.push("CONVERT(CHAR(5), ModifiedOn, 108) >= @timeFrom"); }
-    if (req.query.timeTo && req.query.timeTo.trim()) { request.input('timeTo', sql.VarChar(5), req.query.timeTo); whereClauses.push("CONVERT(CHAR(5), ModifiedOn, 108) <= @timeTo"); }
+    if (req.query.timeFrom && req.query.timeFrom.trim()) { request.input('timeFrom', sql.VarChar(12), req.query.timeFrom.replace('.', ':')); whereClauses.push("CONVERT(VARCHAR(12), ModifiedOn, 114) >= @timeFrom"); }
+    if (req.query.timeTo && req.query.timeTo.trim()) { request.input('timeTo', sql.VarChar(12), req.query.timeTo.replace('.', ':')); whereClauses.push("CONVERT(VARCHAR(12), ModifiedOn, 114) <= @timeTo"); }
     if (req.query.colTimeSearch && req.query.colTimeSearch.trim()) {
       const escaped = req.query.colTimeSearch.replace(/'/g, "''").replace(/%/g, '[%]').replace(/_/g, '[_]');
       whereClauses.push(`CONVERT(VARCHAR(23), ModifiedOn, 121) LIKE N'%${escaped}%'`);
@@ -253,7 +253,7 @@ app.get('/api/chart-data/excel', async (req, res) => {
       sheet.addRow({
         device,
         property,
-        time: dt.toISOString().replace('T', ' ').substring(0, 19) + ' UTC',
+        time: dt.toISOString().replace('T', ' ').substring(0, 23) + ' UTC',
         value: parseFloat(row.NewValueReal)
       });
     });
@@ -284,6 +284,7 @@ app.get('/api/chart-data/excel', async (req, res) => {
 
 // Načtení dat (DeviceDataView)
 app.get('/api/devicedata', async (req, res) => {
+  const startTime = Date.now();
   try {
     const dataSource = req.query.dataSource || 'main'; // 'main' or 'backup'
     const pool = await getPool(dataSource);
@@ -328,12 +329,12 @@ app.get('/api/devicedata', async (req, res) => {
       whereConditions.push('CAST(ModifiedOn AS DATE) <= @dateTo');
     }
     if (req.query.timeFrom && req.query.timeFrom.trim() !== '') {
-      requestParams.input('timeFrom', sql.VarChar(5), req.query.timeFrom);
-      whereConditions.push("CONVERT(CHAR(5), ModifiedOn, 108) >= @timeFrom");
+      requestParams.input('timeFrom', sql.VarChar(12), req.query.timeFrom.replace('.', ':'));
+      whereConditions.push("CONVERT(VARCHAR(12), ModifiedOn, 114) >= @timeFrom");
     }
     if (req.query.timeTo && req.query.timeTo.trim() !== '') {
-      requestParams.input('timeTo', sql.VarChar(5), req.query.timeTo);
-      whereConditions.push("CONVERT(CHAR(5), ModifiedOn, 108) <= @timeTo");
+      requestParams.input('timeTo', sql.VarChar(12), req.query.timeTo.replace('.', ':'));
+      whereConditions.push("CONVERT(VARCHAR(12), ModifiedOn, 114) <= @timeTo");
     }
 
     if (searchValue) {
@@ -420,7 +421,8 @@ app.get('/api/devicedata', async (req, res) => {
       draw,
       recordsTotal,
       recordsFiltered,
-      data: dataRes.recordset
+      data: dataRes.recordset,
+      serverTimeMs: Date.now() - startTime
     });
 
   } catch (err) {
@@ -430,13 +432,15 @@ app.get('/api/devicedata', async (req, res) => {
       recordsTotal: 0,
       recordsFiltered: 0,
       data: [],
-      error: 'Chyba při načítání dat: ' + err.message
+      error: 'Chyba při načítání dat: ' + err.message,
+      serverTimeMs: Date.now() - startTime
     });
   }
 });
 
 // --- Získání statistik (asynchronně vůči tabulce) ---
 app.get('/api/stats', async (req, res) => {
+  const startTime = Date.now();
   try {
     const dataSource = req.query.dataSource || 'main';
     const pool = await getPool(dataSource);
@@ -460,8 +464,8 @@ app.get('/api/stats', async (req, res) => {
 
     if (req.query.dateFrom) { requestParams.input('dateFrom', sql.Date, req.query.dateFrom); whereConditions.push('CAST(ModifiedOn AS DATE) >= @dateFrom'); }
     if (req.query.dateTo) { requestParams.input('dateTo', sql.Date, req.query.dateTo); whereConditions.push('CAST(ModifiedOn AS DATE) <= @dateTo'); }
-    if (req.query.timeFrom && req.query.timeFrom.trim() !== '') { requestParams.input('timeFrom', sql.VarChar(5), req.query.timeFrom); whereConditions.push("CONVERT(CHAR(5), ModifiedOn, 108) >= @timeFrom"); }
-    if (req.query.timeTo && req.query.timeTo.trim() !== '') { requestParams.input('timeTo', sql.VarChar(5), req.query.timeTo); whereConditions.push("CONVERT(CHAR(5), ModifiedOn, 108) <= @timeTo"); }
+    if (req.query.timeFrom && req.query.timeFrom.trim() !== '') { requestParams.input('timeFrom', sql.VarChar(12), req.query.timeFrom.replace('.', ':')); whereConditions.push("CONVERT(VARCHAR(12), ModifiedOn, 114) >= @timeFrom"); }
+    if (req.query.timeTo && req.query.timeTo.trim() !== '') { requestParams.input('timeTo', sql.VarChar(12), req.query.timeTo.replace('.', ':')); whereConditions.push("CONVERT(VARCHAR(12), ModifiedOn, 114) <= @timeTo"); }
 
     if (searchValue) {
       const escapedSearch = escapeSqlString(escapeLike(searchValue));
@@ -544,10 +548,11 @@ app.get('/api/stats', async (req, res) => {
       stats.topFrequency = statsRes.recordsets[3][0]?.val || '-';
     }
 
+    stats.serverTimeMs = Date.now() - startTime;
     res.json(stats);
   } catch (err) {
     console.error('Chyba při výpočtu statistik:', err);
-    res.status(500).json({ error: 'Chyba při výpočtu statistik' });
+    res.status(500).json({ error: 'Chyba při výpočtu statistik', serverTimeMs: Date.now() - startTime });
   }
 });
 
@@ -582,8 +587,8 @@ app.get('/api/devicedata/csv', async (req, res) => {
 
     if (req.query.dateFrom) { requestParams.input('dateFrom', sql.Date, req.query.dateFrom); whereConditions.push('CAST(ModifiedOn AS DATE) >= @dateFrom'); }
     if (req.query.dateTo) { requestParams.input('dateTo', sql.Date, req.query.dateTo); whereConditions.push('CAST(ModifiedOn AS DATE) <= @dateTo'); }
-    if (req.query.timeFrom) { requestParams.input('timeFrom', sql.VarChar(5), req.query.timeFrom); whereConditions.push("CONVERT(CHAR(5), ModifiedOn, 108) >= @timeFrom"); }
-    if (req.query.timeTo) { requestParams.input('timeTo', sql.VarChar(5), req.query.timeTo); whereConditions.push("CONVERT(CHAR(5), ModifiedOn, 108) <= @timeTo"); }
+    if (req.query.timeFrom) { requestParams.input('timeFrom', sql.VarChar(12), req.query.timeFrom.replace('.', ':')); whereConditions.push("CONVERT(VARCHAR(12), ModifiedOn, 114) >= @timeFrom"); }
+    if (req.query.timeTo) { requestParams.input('timeTo', sql.VarChar(12), req.query.timeTo.replace('.', ':')); whereConditions.push("CONVERT(VARCHAR(12), ModifiedOn, 114) <= @timeTo"); }
 
     if (searchValue) {
       const escapedSearch = escapeSqlString(escapeLike(searchValue));
@@ -662,7 +667,7 @@ app.get('/api/devicedata/csv', async (req, res) => {
       const esc = s => `"${String(s || '').replace(/"/g, '""')}"`;
       csv += exportCols.map(c => {
         const val = r[c.key];
-        if (c.key === 'ModifiedOn') return val ? val.toISOString().replace('T', ' ').substring(0, 19) : '';
+        if (c.key === 'ModifiedOn') return val ? val.toISOString().replace('T', ' ').substring(0, 23) : '';
         if (c.key.endsWith('Real')) return val != null ? val : '';
         return esc(val);
       }).join(';') + '\n';
@@ -715,8 +720,8 @@ app.get('/api/devicedata/xlsx', async (req, res) => {
 
     if (req.query.dateFrom) { requestParams.input('dateFrom', sql.Date, req.query.dateFrom); whereConditions.push('CAST(ModifiedOn AS DATE) >= @dateFrom'); }
     if (req.query.dateTo) { requestParams.input('dateTo', sql.Date, req.query.dateTo); whereConditions.push('CAST(ModifiedOn AS DATE) <= @dateTo'); }
-    if (req.query.timeFrom) { requestParams.input('timeFrom', sql.VarChar(5), req.query.timeFrom); whereConditions.push("CONVERT(CHAR(5), ModifiedOn, 108) >= @timeFrom"); }
-    if (req.query.timeTo) { requestParams.input('timeTo', sql.VarChar(5), req.query.timeTo); whereConditions.push("CONVERT(CHAR(5), ModifiedOn, 108) <= @timeTo"); }
+    if (req.query.timeFrom) { requestParams.input('timeFrom', sql.VarChar(12), req.query.timeFrom.replace('.', ':')); whereConditions.push("CONVERT(VARCHAR(12), ModifiedOn, 114) >= @timeFrom"); }
+    if (req.query.timeTo) { requestParams.input('timeTo', sql.VarChar(12), req.query.timeTo.replace('.', ':')); whereConditions.push("CONVERT(VARCHAR(12), ModifiedOn, 114) <= @timeTo"); }
 
     if (searchValue) {
       const escapedSearch = escapeSqlString(escapeLike(searchValue));

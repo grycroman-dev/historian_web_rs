@@ -428,12 +428,13 @@ $(document).ready(function () {
 
       // Format Date/Time inputs
       const pad = n => String(n).padStart(2, '0');
+      const padMs = n => String(n).padStart(3, '0');
       const setInputs = (dFrom, dTo) => {
         $('#dateFrom').val(`${dFrom.getFullYear()}-${pad(dFrom.getMonth() + 1)}-${pad(dFrom.getDate())}`);
-        $('#timeFrom').val(`${pad(dFrom.getHours())}:${pad(dFrom.getMinutes())}`);
+        $('#timeFrom').val(`${pad(dFrom.getHours())}:${pad(dFrom.getMinutes())}:${pad(dFrom.getSeconds())}.${padMs(dFrom.getMilliseconds())}`);
 
         $('#dateTo').val(`${dTo.getFullYear()}-${pad(dTo.getMonth() + 1)}-${pad(dTo.getDate())}`);
-        $('#timeTo').val(`${pad(dTo.getHours())}:${pad(dTo.getMinutes())}`);
+        $('#timeTo').val(`${pad(dTo.getHours())}:${pad(dTo.getMinutes())}:${pad(dTo.getSeconds())}.${padMs(dTo.getMilliseconds())}`);
       };
 
       if (from && to) setInputs(from, to);
@@ -667,6 +668,17 @@ $(document).ready(function () {
     return selected;
   }
 
+  // Měření rychlosti načítání pro optimalizaci
+  $('#recordsTable').on('preXhr.dt', function (e, settings, data) {
+    window._loadStartTime = performance.now();
+  });
+
+  $('#recordsTable').on('xhr.dt', function (e, settings, json, xhr) {
+    const totalTime = Math.round(performance.now() - window._loadStartTime);
+    const serverTime = (json && json.serverTimeMs !== undefined) ? json.serverTimeMs : '?';
+    $('#loadTime').html(`<span title="Celkový čas: ${totalTime}ms">${totalTime}ms</span> <small style="opacity:0.7;">(SQL: ${serverTime}ms)</small>`);
+  });
+
   // Inicializace DataTables
   const table = $('#recordsTable').DataTable({
     processing: true,
@@ -718,7 +730,7 @@ $(document).ready(function () {
           if (!data) return '';
           // Zobrazit v UTC
           const d = new Date(data);
-          return d.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+          return d.toISOString().replace('T', ' ').substring(0, 23) + ' UTC';
         }
       },
       { data: 'Name', name: 'Name' },
@@ -839,7 +851,7 @@ $(document).ready(function () {
       const info = this.api().page.info();
       $('#rowCount').text(info.recordsDisplay.toLocaleString());
       const now = new Date();
-      const utcString = now.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+      const utcString = now.toISOString().replace('T', ' ').substring(0, 23) + ' UTC';
       $('#lastUpdate').text(utcString);
 
       // Fetch Real-time Stats from server asynchronously

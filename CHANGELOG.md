@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.1.4 - 2026-02-21
+- **Novinky:**
+    - Zobrazení milisekund v celém systému (tabulka, exporty, grafy).
+    - Rozšíření časového filtru o podporu sekund a milisekund. Filtrování probíhá s přesností na tisíciny vteřiny.
+
+## 2.1.3 - 2026-02-21
+- **Novinky:**
+    - Přidáno měření a zobrazování doby načítání dat v patičce aplikace. Zobrazuje se celkový čas (od požadavku po vykreslení) a čistý čas SQL dotazu na serveru, což usnadňuje další optimalizaci výkonu.
+
 ## 2.1.2 - 2026-02-20
 - **Opravy:**
     - Oprava zobrazení verze aplikace v patičce (aktualizace package.json na 2.1.2).

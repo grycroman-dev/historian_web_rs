@@ -76,14 +76,15 @@
       </div>
 
       <!-- Date Inputs (manual) -->
-      <div class="filters-row" style="margin-top: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+      <div class="filters-row"
+        style="margin-top: 10px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
         <div class="date-group" style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap;">
           <i class="fas fa-calendar-alt"></i>
           <input type="date" id="dateFrom" class="form-input">
-          <input type="time" id="timeFrom" class="form-input">
+          <input type="time" id="timeFrom" class="form-input" step="0.001">
           <span>-</span>
           <input type="date" id="dateTo" class="form-input">
-          <input type="time" id="timeTo" class="form-input">
+          <input type="time" id="timeTo" class="form-input" step="0.001">
         </div>
       </div>
 
@@ -253,6 +254,8 @@
         <span id="dbStatus" class="status-item"><i class="fas fa-database"></i> <span id="dbStatusText">Hlavní
             DB</span></span>
         <span class="status-item"><i class="fas fa-clock"></i> <span id="lastUpdate">Nikdy</span></span>
+        <span class="status-item" title="Doba načítání dat ze serveru"><i class="fas fa-bolt"></i> <span
+            id="loadTime">0ms</span></span>
       </div>
       <div class="status-right">
         <span class="status-item">Záznamů: <span id="rowCount">0</span></span>
