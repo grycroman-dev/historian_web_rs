@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.9 - 2026-02-22
+- **Novinky:**
+    - Vytvořen robustní migrační SQL skript pro produkční nasazení s podporou dávkového zpracování (batching) milionů záznamů.
+    - Přidána kompletní uživatelská příručka v češtině (přímo v projektu jako `UZIVATELSKA_PRIRUCKA.md` a export v `UZIVATELSKA_PRIRUCKA.pdf`).
+- **Optimalizace:**
+    - Finální revize databázové logiky (indexy, statistiky) pro špičkový výkon na velkých datech.
+
 ## 2.1.8 - 2026-02-21
 - **Opravy:**
     - Exporty z Grafu (CSV i Excel) nyní plně respektují stejné filtry jako samotný graf a tabulka (včetně sloupcových filtrů a globálního hledání).
