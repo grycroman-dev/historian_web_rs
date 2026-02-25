@@ -104,6 +104,54 @@ function parseNumericFilter(colName, val) {
   return `CAST(${colName} AS NVARCHAR(MAX)) LIKE N'%${escapedVal}%'`;
 }
 
+// Funkce pro předběžné rozlišení DeviceId na základě filtrů (zrychluje SQL dotazy)
+async function getMatchedDeviceIds(pool, query) {
+  const deviceFilters = [];
+  const request = pool.request();
+
+  addFilter(request, deviceFilters, 'df_region', 'DR.Name', query.region || query['region[]'] || query.col3);
+  addFilter(request, deviceFilters, 'df_locality', 'DL.Name', query.locality || query['locality[]'] || query.col4);
+  addFilter(request, deviceFilters, 'df_type', 'DT.Name', query.type || query['type[]'] || query.col6);
+  addFilter(request, deviceFilters, 'df_frequency', 'D.Frequency', query.frequency || query['frequency[]'] || query.col5);
+  addFilter(request, deviceFilters, 'df_device', 'D.Name', query.device || query['device[]'] || query.col2);
+
+  if (deviceFilters.length === 0) return null;
+
+  const deviceJoinSQL = `
+    SELECT D.Id 
+    FROM dbo.Device D
+    LEFT JOIN dbo.DeviceRegion DR ON DR.Id = D.DeviceRegionId
+    LEFT JOIN dbo.DeviceLocality DL ON DL.Id = D.DeviceLocalityId
+    LEFT JOIN dbo.DeviceType DT ON DT.Id = D.DeviceTypeId
+    WHERE ${deviceFilters.join(' AND ')}
+  `;
+
+  try {
+    const result = await request.query(deviceJoinSQL);
+    return result.recordset.map(r => r.Id);
+  } catch (err) {
+    console.error('getMatchedDeviceIds error:', err);
+    return null;
+  }
+}
+
+// Funkce pro předběžné rozlišení DevicePropertyId (zrychluje SQL dotazy)
+async function getMatchedPropertyIds(pool, query) {
+  const propFilters = [];
+  const request = pool.request();
+  addFilter(request, propFilters, 'pf_name', 'Name', query.property || query['property[]'] || query.col7);
+
+  if (propFilters.length === 0) return null;
+
+  try {
+    const result = await request.query(`SELECT Id FROM dbo.DeviceProperty WHERE ${propFilters.join(' AND ')}`);
+    return result.recordset.map(r => r.Id);
+  } catch (err) {
+    console.error('getMatchedPropertyIds error:', err);
+    return null;
+  }
+}
+
 // Načtení filtrů (Region, Locality, Type, Property)
 app.get('/api/filters', async (req, res) => {
   try {
@@ -199,19 +247,26 @@ app.get('/api/chart-data', async (req, res) => {
     request.input('device', sql.NVarChar, device);
     request.input('property', sql.NVarChar, property);
 
+    // Zjistíme ID pro rychlejší vyhledávání v DeviceData bez VIEW
+    const devRes = await request.query('SELECT Id FROM dbo.Device WHERE Name = @device');
+    const deviceId = devRes.recordset.length > 0 ? devRes.recordset[0].Id : -1;
+
+    const propRes = await request.query('SELECT Id FROM dbo.DeviceProperty WHERE Name = @property');
+    const propertyId = propRes.recordset.length > 0 ? propRes.recordset[0].Id : -1;
+
     let whereClauses = [
-      'Name = @device',
-      'DeviceProperty = @property',
+      `DeviceId = ${deviceId}`,
+      `DevicePropertyId = ${propertyId}`,
       'NewValueReal IS NOT NULL'
     ];
 
     if (req.query.dateFrom) {
       request.input('dateFrom', sql.Date, req.query.dateFrom);
-      whereClauses.push('CAST(ModifiedOn AS DATE) >= @dateFrom');
+      whereClauses.push('ModifiedOn >= @dateFrom');
     }
     if (req.query.dateTo) {
       request.input('dateTo', sql.Date, req.query.dateTo);
-      whereClauses.push('CAST(ModifiedOn AS DATE) <= @dateTo');
+      whereClauses.push('ModifiedOn < DATEADD(day, 1, @dateTo)');
     }
     if (req.query.timeFrom && req.query.timeFrom.trim() !== '') {
       request.input('timeFrom', sql.VarChar(12), req.query.timeFrom.replace('.', ':'));
@@ -300,8 +355,8 @@ app.get('/api/chart-data/excel', async (req, res) => {
 
     let whereClauses = ['Name = @device', 'DeviceProperty = @property', 'NewValueReal IS NOT NULL'];
 
-    if (req.query.dateFrom) { request.input('dateFrom', sql.Date, req.query.dateFrom); whereClauses.push('CAST(ModifiedOn AS DATE) >= @dateFrom'); }
-    if (req.query.dateTo) { request.input('dateTo', sql.Date, req.query.dateTo); whereClauses.push('CAST(ModifiedOn AS DATE) <= @dateTo'); }
+    if (req.query.dateFrom) { request.input('dateFrom', sql.Date, req.query.dateFrom); whereClauses.push('ModifiedOn >= @dateFrom'); }
+    if (req.query.dateTo) { request.input('dateTo', sql.Date, req.query.dateTo); whereClauses.push('ModifiedOn < DATEADD(day, 1, @dateTo)'); }
     if (req.query.timeFrom && req.query.timeFrom.trim()) { request.input('timeFrom', sql.VarChar(12), req.query.timeFrom.replace('.', ':')); whereClauses.push("CONVERT(VARCHAR(12), ModifiedOn, 114) >= @timeFrom"); }
     if (req.query.timeTo && req.query.timeTo.trim()) { request.input('timeTo', sql.VarChar(12), req.query.timeTo.replace('.', ':')); whereClauses.push("CONVERT(VARCHAR(12), ModifiedOn, 114) <= @timeTo"); }
     const columns = [
@@ -425,107 +480,102 @@ app.get('/api/devicedata', async (req, res) => {
     let whereConditions = [];
     const requestParams = pool.request();
 
-    // Filtry dropdownů (Multi-select)
-    addFilter(requestParams, whereConditions, 'region', 'DeviceRegion', req.query.region || req.query['region[]']);
-    addFilter(requestParams, whereConditions, 'locality', 'DeviceLocality', req.query.locality || req.query['locality[]']);
-    addFilter(requestParams, whereConditions, 'type', 'DeviceType', req.query.type || req.query['type[]']);
-    addFilter(requestParams, whereConditions, 'property', 'DeviceProperty', req.query.property || req.query['property[]']);
-    // Added Frequency filter
-    addFilter(requestParams, whereConditions, 'frequency', 'Frequency', req.query.frequency || req.query['frequency[]']);
-    // Added Device filter
-    addFilter(requestParams, whereConditions, 'device', 'Name', req.query.device || req.query['device[]']);
+    // 1. Předvýběr ID pro zrychlení dotazů
+    const deviceIds = await getMatchedDeviceIds(pool, req.query);
+    if (deviceIds !== null) {
+      if (deviceIds.length === 0) {
+        return res.json({ draw, recordsTotal: 0, recordsFiltered: 0, data: [], serverTimeMs: Date.now() - startTime });
+      }
+      whereConditions.push(`DD.DeviceId IN (${deviceIds.join(',')})`);
+    }
 
-    // Filtry data a času
+    const propertyIds = await getMatchedPropertyIds(pool, req.query);
+    if (propertyIds !== null) {
+      if (propertyIds.length === 0) {
+        return res.json({ draw, recordsTotal: 0, recordsFiltered: 0, data: [], serverTimeMs: Date.now() - startTime });
+      }
+      whereConditions.push(`DD.DevicePropertyId IN (${propertyIds.join(',')})`);
+    }
+
+    // 2. Filtry data a času (SARGable)
     if (req.query.dateFrom) {
       requestParams.input('dateFrom', sql.Date, req.query.dateFrom);
-      whereConditions.push('CAST(ModifiedOn AS DATE) >= @dateFrom');
+      whereConditions.push('DD.ModifiedOn >= @dateFrom');
     }
     if (req.query.dateTo) {
       requestParams.input('dateTo', sql.Date, req.query.dateTo);
-      whereConditions.push('CAST(ModifiedOn AS DATE) <= @dateTo');
+      whereConditions.push('DD.ModifiedOn < DATEADD(day, 1, @dateTo)');
     }
     if (req.query.timeFrom && req.query.timeFrom.trim() !== '') {
       requestParams.input('timeFrom', sql.VarChar(12), req.query.timeFrom.replace('.', ':'));
-      whereConditions.push("CONVERT(VARCHAR(12), ModifiedOn, 114) >= @timeFrom");
+      whereConditions.push("CONVERT(VARCHAR(12), DD.ModifiedOn, 114) >= @timeFrom");
     }
     if (req.query.timeTo && req.query.timeTo.trim() !== '') {
       requestParams.input('timeTo', sql.VarChar(12), req.query.timeTo.replace('.', ':'));
-      whereConditions.push("CONVERT(VARCHAR(12), ModifiedOn, 114) <= @timeTo");
+      whereConditions.push("CONVERT(VARCHAR(12), DD.ModifiedOn, 114) <= @timeTo");
     }
 
+    // 3. Globální vyhledávání (Search)
     if (searchValue) {
       const escapedSearch = escapeSqlString(escapeLike(searchValue));
+      // Pro globální search stále musíme trochu joinovat, ale aspoň si předvybereme zařízení
       const prefetchReq = pool.request();
-      const devRes = await prefetchReq.query(`
-        SELECT D.Id FROM dbo.Device D 
-        LEFT JOIN dbo.DeviceLocality DL ON DL.Id=D.DeviceLocalityId 
-        LEFT JOIN dbo.DeviceRegion DR ON DR.Id=D.DeviceRegionId 
-        LEFT JOIN dbo.DeviceType DT ON DT.Id=D.DeviceTypeId 
-        WHERE D.Name LIKE N'%${escapedSearch}%' OR D.Frequency LIKE N'%${escapedSearch}%' 
-           OR DL.Name LIKE N'%${escapedSearch}%' OR DR.Name LIKE N'%${escapedSearch}%' OR DT.Name LIKE N'%${escapedSearch}%'
-      `);
-      const matchedDeviceIds = devRes.recordset.map(r => r.Id);
+      const devRes = await prefetchReq.query(`SELECT Id FROM dbo.Device WHERE Name LIKE N'%${escapedSearch}%' OR Frequency LIKE N'%${escapedSearch}%'`);
+      const matchedDevIds = devRes.recordset.map(r => r.Id);
 
-      const propRes = await prefetchReq.query(`
-        SELECT Name FROM dbo.DeviceProperty WHERE Name LIKE N'%${escapedSearch}%'
-      `);
-      const matchedPropNames = propRes.recordset.map(r => `N'${escapeSqlString(r.Name)}'`);
+      const propRes = await prefetchReq.query(`SELECT Id FROM dbo.DeviceProperty WHERE Name LIKE N'%${escapedSearch}%'`);
+      const matchedPrIds = propRes.recordset.map(r => r.Id);
 
       let globSearch = [
-        `OldValue LIKE N'%${escapedSearch}%'`,
-        `NewValue LIKE N'%${escapedSearch}%'`
+        `DD.OldValue LIKE N'%${escapedSearch}%'`,
+        `DD.NewValue LIKE N'%${escapedSearch}%'`
       ];
-
-      if (matchedDeviceIds.length > 0) {
-        globSearch.push(`DeviceId IN (${matchedDeviceIds.join(',')})`);
-      }
-      if (matchedPropNames.length > 0) {
-        globSearch.push(`DeviceProperty IN (${matchedPropNames.join(',')})`);
-      }
-
-      // Optimalizace: Id vyhledáváme jen když jde o celé číslo (bez CASTu)
-      if (/^\d+$/.test(searchValue)) {
-        globSearch.push(`Id = ${parseInt(searchValue)}`);
-      }
-
-      // Optimalizace: Datum vyhledáváme jen když řetězec obsahuje znaky typické pro datum
-      if (/^[0-9\- \:\.]+$/.test(searchValue)) {
-        globSearch.push(`CONVERT(VARCHAR(23), ModifiedOn, 121) LIKE N'%${escapedSearch}%'`);
-      }
+      if (matchedDevIds.length > 0) globSearch.push(`DD.DeviceId IN (${matchedDevIds.join(',')})`);
+      if (matchedPrIds.length > 0) globSearch.push(`DD.DevicePropertyId IN (${matchedPrIds.join(',')})`);
+      if (/^\d+$/.test(searchValue)) globSearch.push(`DD.Id = ${parseInt(searchValue)}`);
 
       whereConditions.push(`(${globSearch.join(' OR ')})`);
     }
 
+    // 4. Sloupcové filtry
     for (let i = 0; i < columns.length; i++) {
       const val = req.query['col' + i];
       if (val && val.trim() !== '') {
         const colName = columns[i];
-        const escapedVal = escapeSqlString(escapeLike(val));
+
+        // Metadata sloupce jsou již vyřešeny pomocí ID v kroku 1 (deviceIds, propertyIds)
+        if (['Name', 'DeviceRegion', 'DeviceLocality', 'Frequency', 'DeviceType', 'DeviceProperty'].includes(colName)) {
+          continue;
+        }
+
         if (colName === 'Id' || colName === 'OldValueReal' || colName === 'NewValueReal') {
-          whereConditions.push(parseNumericFilter(colName, val));
+          whereConditions.push(parseNumericFilter('DD.' + colName, val));
         } else if (colName === 'ModifiedOn') {
-          whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
+          whereConditions.push(`CONVERT(VARCHAR(23), DD.${colName}, 121) LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
         } else {
-          whereConditions.push(`${colName} LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
+          whereConditions.push(`DD.${colName} LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
         }
       }
     }
 
     const whereClause = whereConditions.length ? 'WHERE ' + whereConditions.join(' AND ') : '';
-    console.log('DEBUG SQL:', whereClause);
+    const baseTable = 'dbo.DeviceData DD';
 
-    const totalRes = await pool.request().query('SELECT COUNT(*) AS cnt FROM dbo.DeviceDataView');
+    // Rychlé získání celkového počtu záznamů ze systémových metadat (instantní u 24M+ řádků)
+    const totalRes = await pool.request().query("SELECT SUM(rows) AS cnt FROM sys.partitions WHERE object_id = OBJECT_ID('dbo.DeviceData') AND index_id < 2");
     const recordsTotal = totalRes.recordset[0].cnt;
 
-    const countQuery = `SELECT COUNT(*) AS cnt FROM dbo.DeviceDataView ${whereClause}`;
+    const countQuery = `SELECT COUNT(*) AS cnt FROM ${baseTable} WITH (NOLOCK) ${whereClause}`;
     const filtRes = await requestParams.query(countQuery);
     const recordsFiltered = filtRes.recordset[0].cnt;
 
+    // Finální dotaz s JOINem na metadata (přes VIEW) jen pro aktuální stránku
+    // VIEW bylo aktualizováno, aby obsahovalo i DevicePropertyId, takže můžeme použít stejnou WHERE klauzuli.
     const dataQuery = `
       SELECT *
-      FROM dbo.DeviceDataView
+      FROM dbo.DeviceDataView DD
       ${whereClause}
-      ORDER BY ${orderColumn} ${orderDir}
+      ORDER BY DD.${orderColumn} ${orderDir}
       OFFSET ${start} ROWS 
       FETCH NEXT ${length} ROWS ONLY
     `;
@@ -570,15 +620,20 @@ app.get('/api/stats', async (req, res) => {
     let whereConditions = [];
     const requestParams = pool.request();
 
-    addFilter(requestParams, whereConditions, 'region', 'DeviceRegion', req.query.region || req.query['region[]']);
-    addFilter(requestParams, whereConditions, 'locality', 'DeviceLocality', req.query.locality || req.query['locality[]']);
-    addFilter(requestParams, whereConditions, 'type', 'DeviceType', req.query.type || req.query['type[]']);
-    addFilter(requestParams, whereConditions, 'property', 'DeviceProperty', req.query.property || req.query['property[]']);
-    addFilter(requestParams, whereConditions, 'frequency', 'Frequency', req.query.frequency || req.query['frequency[]']);
-    addFilter(requestParams, whereConditions, 'device', 'Name', req.query.device || req.query['device[]']);
+    const deviceIds = await getMatchedDeviceIds(pool, req.query);
+    if (deviceIds !== null) {
+      if (deviceIds.length === 0) return res.json({ min: 0, max: 0, avg: 0, count: 0, serverTimeMs: Date.now() - startTime });
+      whereConditions.push(`DeviceId IN (${deviceIds.join(',')})`);
+    }
 
-    if (req.query.dateFrom) { requestParams.input('dateFrom', sql.Date, req.query.dateFrom); whereConditions.push('CAST(ModifiedOn AS DATE) >= @dateFrom'); }
-    if (req.query.dateTo) { requestParams.input('dateTo', sql.Date, req.query.dateTo); whereConditions.push('CAST(ModifiedOn AS DATE) <= @dateTo'); }
+    const propertyIds = await getMatchedPropertyIds(pool, req.query);
+    if (propertyIds !== null) {
+      if (propertyIds.length === 0) return res.json({ min: 0, max: 0, avg: 0, count: 0, serverTimeMs: Date.now() - startTime });
+      whereConditions.push(`DevicePropertyId IN (${propertyIds.join(',')})`);
+    }
+
+    if (req.query.dateFrom) { requestParams.input('dateFrom', sql.Date, req.query.dateFrom); whereConditions.push('ModifiedOn >= @dateFrom'); }
+    if (req.query.dateTo) { requestParams.input('dateTo', sql.Date, req.query.dateTo); whereConditions.push('ModifiedOn < DATEADD(day, 1, @dateTo)'); }
     if (req.query.timeFrom && req.query.timeFrom.trim() !== '') { requestParams.input('timeFrom', sql.VarChar(12), req.query.timeFrom.replace('.', ':')); whereConditions.push("CONVERT(VARCHAR(12), ModifiedOn, 114) >= @timeFrom"); }
     if (req.query.timeTo && req.query.timeTo.trim() !== '') { requestParams.input('timeTo', sql.VarChar(12), req.query.timeTo.replace('.', ':')); whereConditions.push("CONVERT(VARCHAR(12), ModifiedOn, 114) <= @timeTo"); }
 
@@ -698,8 +753,8 @@ app.get('/api/devicedata/csv', async (req, res) => {
     // Added Device filter
     addFilter(requestParams, whereConditions, 'device', 'Name', req.query.device || req.query['device[]']);
 
-    if (req.query.dateFrom) { requestParams.input('dateFrom', sql.Date, req.query.dateFrom); whereConditions.push('CAST(ModifiedOn AS DATE) >= @dateFrom'); }
-    if (req.query.dateTo) { requestParams.input('dateTo', sql.Date, req.query.dateTo); whereConditions.push('CAST(ModifiedOn AS DATE) <= @dateTo'); }
+    if (req.query.dateFrom) { requestParams.input('dateFrom', sql.Date, req.query.dateFrom); whereConditions.push('ModifiedOn >= @dateFrom'); }
+    if (req.query.dateTo) { requestParams.input('dateTo', sql.Date, req.query.dateTo); whereConditions.push('ModifiedOn < DATEADD(day, 1, @dateTo)'); }
     if (req.query.timeFrom) { requestParams.input('timeFrom', sql.VarChar(12), req.query.timeFrom.replace('.', ':')); whereConditions.push("CONVERT(VARCHAR(12), ModifiedOn, 114) >= @timeFrom"); }
     if (req.query.timeTo) { requestParams.input('timeTo', sql.VarChar(12), req.query.timeTo.replace('.', ':')); whereConditions.push("CONVERT(VARCHAR(12), ModifiedOn, 114) <= @timeTo"); }
 
@@ -829,8 +884,8 @@ app.get('/api/devicedata/xlsx', async (req, res) => {
     // Added Device filter
     addFilter(requestParams, whereConditions, 'device', 'Name', req.query.device || req.query['device[]']);
 
-    if (req.query.dateFrom) { requestParams.input('dateFrom', sql.Date, req.query.dateFrom); whereConditions.push('CAST(ModifiedOn AS DATE) >= @dateFrom'); }
-    if (req.query.dateTo) { requestParams.input('dateTo', sql.Date, req.query.dateTo); whereConditions.push('CAST(ModifiedOn AS DATE) <= @dateTo'); }
+    if (req.query.dateFrom) { requestParams.input('dateFrom', sql.Date, req.query.dateFrom); whereConditions.push('ModifiedOn >= @dateFrom'); }
+    if (req.query.dateTo) { requestParams.input('dateTo', sql.Date, req.query.dateTo); whereConditions.push('ModifiedOn < DATEADD(day, 1, @dateTo)'); }
     if (req.query.timeFrom) { requestParams.input('timeFrom', sql.VarChar(12), req.query.timeFrom.replace('.', ':')); whereConditions.push("CONVERT(VARCHAR(12), ModifiedOn, 114) >= @timeFrom"); }
     if (req.query.timeTo) { requestParams.input('timeTo', sql.VarChar(12), req.query.timeTo.replace('.', ':')); whereConditions.push("CONVERT(VARCHAR(12), ModifiedOn, 114) <= @timeTo"); }
 

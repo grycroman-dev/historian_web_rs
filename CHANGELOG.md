@@ -1,4 +1,21 @@
 # Changelog
+ 
+ ## 2.1.10 - 2026-02-25
+- **Extrémní optimalizace výkonu:**
+    - Oprava chyby timeoutu (ETIMEOUT) při filtrování velkých časových rozsahů (např. posledních 7 dní).
+    - Implementace instantního počítání záznamů (recordsTotal) pomocí systémových metadat SQL Serveru (`sys.partitions`) – zrychlení z desítek sekund na 0ms u tabulek s 24M+ řádky.
+    - Nový systém "pre-fetch" ID pro filtry metadat (zařízení, vlastnosti, lokality atd.), který eliminuje drahé JOINy nad miliony záznamů.
+    - Přidány optimalizované indexy a provedena aktualizace statistik v DB pro správné fungování SARGable dotazů.
+    - Použití `WITH (NOLOCK)` u náročných čtecích dotazů pro zabránění blokování.
+- **Opravy:**
+    - Oprava chyby `Invalid column name DeviceProperty` a chyb při konverzi typů sjednocením ID/Text filtrů.
+    - Aktualizace pohledu `dbo.DeviceDataView` (přidáno `DevicePropertyId`).
+- **Zásadní změna UI:**
+    - Přidáno tlačítko **"Aktivovat filtr"** pro manuální potvrzení komplexních filtrů.
+    - Nové klávesové zkratky: **Alt+Enter** (aktivovat filtr), **Enter** (v textovém poli).
+    - Doplněna nápověda aplikace.
+- **SQL skript:** Vytvořen ucelený optimalizační balíček `db/performance_optimization.sql` pro produkční nasazení.
+
 
 ## 2.1.9 - 2026-02-22
 - **Novinky:**

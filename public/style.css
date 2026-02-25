@@ -403,6 +403,41 @@ body.dark-mode .btn-icon-clear {
 }
 
 /* --- BUTTONS --- */
+.btn {
+  padding: 0.625rem 1.25rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--card-bg);
+  color: var(--text-color);
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  font-size: 0.875rem;
+  transition: var(--transition);
+  outline: none;
+}
+
+.btn-primary {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-primary i {
+  color: white;
+}
+
 .btn-icon,
 .btn-clear,
 .btn-reset-cols {
@@ -441,6 +476,10 @@ body.dark-mode .btn-icon-clear {
   background: #047857;
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
+}
+
+#btnApplyFilters {
+  min-width: 160px;
 }
 
 /* STATS BAR */

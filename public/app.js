@@ -52,6 +52,11 @@ $(document).ready(function () {
       e.preventDefault();
       if (themeToggle) themeToggle.click();
     }
+    // Aktivovat filtry: Alt+Enter
+    if (e.altKey && e.key === 'Enter') {
+      e.preventDefault();
+      $('#btnApplyFilters').click();
+    }
     // Zrušit filtry: Alt+C
     if (e.altKey && (e.key === 'c' || e.key === 'C')) {
       e.preventDefault();
@@ -625,7 +630,7 @@ $(document).ready(function () {
       } else {
         btn.html(iconHtml + ' ' + defaultText + ': (' + checked.length + ')');
       }
-      refreshTable();
+      // refreshTable(); // Automatic update disabled to prevent timeouts during complex filtering
     });
 
     // Search filtering logic
@@ -948,6 +953,8 @@ $(document).ready(function () {
     table.draw(false);
   }
 
+  $('#btnApplyFilters').on('click', refreshTable);
+
   // Dropdowny už volají refreshTable samy uvnitř setupMultiselect
   // $('#regionSelect, #localitySelect, #typeSelect, #propertySelect').on('change', refreshTable); <-- OLD
   // Date Validation & Refresh
@@ -962,7 +969,7 @@ $(document).ready(function () {
       $(this).val('');
       return;
     }
-    refreshTable();
+    // refreshTable(); // Automatic update disabled
   });
 
   let searchTimeout;
@@ -982,7 +989,7 @@ $(document).ready(function () {
   searchInput.on('keyup', function () {
     toggleClearSearchBtn();
     clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(refreshTable, CONFIG.SEARCH_DEBOUNCE);
+    // searchTimeout = setTimeout(refreshTable, CONFIG.SEARCH_DEBOUNCE); // Automatic update disabled
   });
 
   clearSearchBtn.on('click', function () {
@@ -991,9 +998,11 @@ $(document).ready(function () {
     refreshTable();
   });
 
-  $('.filter-input').on('keyup change', function () {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(refreshTable, CONFIG.SEARCH_DEBOUNCE);
+  $('.filter-input, #globalSearch').on('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      refreshTable();
+    }
   });
 
   const savedPageLen = localStorage.getItem('historian_page_len') || '10';
@@ -1002,7 +1011,7 @@ $(document).ready(function () {
   $('#pageLengthSelect').on('change', function () {
     const len = $(this).val();
     localStorage.setItem('historian_page_len', len);
-    table.page.len(len).draw();
+    table.page.len(len).draw(); // Page length can still trigger draw as it's not a filter change
   });
 
   // Reset All Filters Button
