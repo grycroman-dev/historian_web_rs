@@ -8,6 +8,7 @@
     - Přidány optimalizované indexy a provedena aktualizace statistik v DB pro správné fungování SARGable dotazů.
     - Použití `WITH (NOLOCK)` u náročných čtecích dotazů pro zabránění blokování.
 - **Opravy:**
+    - **Oprava vyhledávání:** Obnovena funkce centrálního a sloupcového vyhledávání metadat (Region, Lokalita, Typ, Frekvence) přidáním podpory `LIKE` do pre-fetch logiky.
     - Oprava chyby `Invalid column name DeviceProperty` a chyb při konverzi typů sjednocením ID/Text filtrů.
     - Aktualizace pohledu `dbo.DeviceDataView` (přidáno `DevicePropertyId`).
 - **Zásadní změna UI:**

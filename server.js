@@ -109,11 +109,19 @@ async function getMatchedDeviceIds(pool, query) {
   const deviceFilters = [];
   const request = pool.request();
 
-  addFilter(request, deviceFilters, 'df_region', 'DR.Name', query.region || query['region[]'] || query.col3);
-  addFilter(request, deviceFilters, 'df_locality', 'DL.Name', query.locality || query['locality[]'] || query.col4);
-  addFilter(request, deviceFilters, 'df_type', 'DT.Name', query.type || query['type[]'] || query.col6);
-  addFilter(request, deviceFilters, 'df_frequency', 'D.Frequency', query.frequency || query['frequency[]'] || query.col5);
-  addFilter(request, deviceFilters, 'df_device', 'D.Name', query.device || query['device[]'] || query.col2);
+  // Dropdowny (přesná shoda)
+  addFilter(request, deviceFilters, 'df_region', 'DR.Name', query.region || query['region[]']);
+  addFilter(request, deviceFilters, 'df_locality', 'DL.Name', query.locality || query['locality[]']);
+  addFilter(request, deviceFilters, 'df_type', 'DT.Name', query.type || query['type[]']);
+  addFilter(request, deviceFilters, 'df_frequency', 'D.Frequency', query.frequency || query['frequency[]']);
+  addFilter(request, deviceFilters, 'df_device', 'D.Name', query.device || query['device[]']);
+
+  // Sloupcové filtry (částečná shoda LIKE)
+  if (query.col2) deviceFilters.push(`D.Name LIKE N'%${escapeSqlString(escapeLike(query.col2))}%'`);
+  if (query.col3) deviceFilters.push(`DR.Name LIKE N'%${escapeSqlString(escapeLike(query.col3))}%'`);
+  if (query.col4) deviceFilters.push(`DL.Name LIKE N'%${escapeSqlString(escapeLike(query.col4))}%'`);
+  if (query.col5) deviceFilters.push(`D.Frequency LIKE N'%${escapeSqlString(escapeLike(query.col5))}%'`);
+  if (query.col6) deviceFilters.push(`DT.Name LIKE N'%${escapeSqlString(escapeLike(query.col6))}%'`);
 
   if (deviceFilters.length === 0) return null;
 
@@ -139,7 +147,8 @@ async function getMatchedDeviceIds(pool, query) {
 async function getMatchedPropertyIds(pool, query) {
   const propFilters = [];
   const request = pool.request();
-  addFilter(request, propFilters, 'pf_name', 'Name', query.property || query['property[]'] || query.col7);
+  addFilter(request, propFilters, 'pf_name', 'Name', query.property || query['property[]']);
+  if (query.col7) propFilters.push(`Name LIKE N'%${escapeSqlString(escapeLike(query.col7))}%'`);
 
   if (propFilters.length === 0) return null;
 
@@ -520,7 +529,17 @@ app.get('/api/devicedata', async (req, res) => {
       const escapedSearch = escapeSqlString(escapeLike(searchValue));
       // Pro globální search stále musíme trochu joinovat, ale aspoň si předvybereme zařízení
       const prefetchReq = pool.request();
-      const devRes = await prefetchReq.query(`SELECT Id FROM dbo.Device WHERE Name LIKE N'%${escapedSearch}%' OR Frequency LIKE N'%${escapedSearch}%'`);
+      const devRes = await prefetchReq.query(`
+        SELECT D.Id FROM dbo.Device D
+        LEFT JOIN dbo.DeviceRegion DR ON DR.Id = D.DeviceRegionId
+        LEFT JOIN dbo.DeviceLocality DL ON DL.Id = D.DeviceLocalityId
+        LEFT JOIN dbo.DeviceType DT ON DT.Id = D.DeviceTypeId
+        WHERE D.Name LIKE N'%${escapedSearch}%' 
+           OR D.Frequency LIKE N'%${escapedSearch}%'
+           OR DR.Name LIKE N'%${escapedSearch}%'
+           OR DL.Name LIKE N'%${escapedSearch}%'
+           OR DT.Name LIKE N'%${escapedSearch}%'
+      `);
       const matchedDevIds = devRes.recordset.map(r => r.Id);
 
       const propRes = await prefetchReq.query(`SELECT Id FROM dbo.DeviceProperty WHERE Name LIKE N'%${escapedSearch}%'`);
