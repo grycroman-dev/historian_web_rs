@@ -553,6 +553,35 @@ app.get('/api/devicedata', async (req, res) => {
       if (matchedPrIds.length > 0) globSearch.push(`DD.DevicePropertyId IN (${matchedPrIds.join(',')})`);
       if (/^\d+$/.test(searchValue)) globSearch.push(`DD.Id = ${parseInt(searchValue)}`);
 
+      // Inteligentní vyhledávání v datu (jen pokud to vypadá jako datum/čas)
+      const trimmedSearch = searchValue.trim();
+      if (/^\d{4}/.test(trimmedSearch) || /^\d{1,2}[./:]/.test(trimmedSearch)) {
+        let datePart = trimmedSearch;
+        let foundDateRange = false;
+
+        // Převod českého formátu DD.MM.YYYY na YYYY-MM-DD
+        const czMatch = trimmedSearch.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+        if (czMatch) datePart = `${czMatch[3]}-${czMatch[2].padStart(2, '0')}-${czMatch[1].padStart(2, '0')}`;
+
+        if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+          requestParams.input('s_date_start', sql.DateTime, datePart);
+          globSearch.push(`(DD.ModifiedOn >= @s_date_start AND DD.ModifiedOn < DATEADD(day, 1, @s_date_start))`);
+          foundDateRange = true;
+        } else if (/^\d{4}-\d{2}$/.test(datePart)) {
+          requestParams.input('s_month_start', sql.DateTime, datePart + '-01');
+          globSearch.push(`(DD.ModifiedOn >= @s_month_start AND DD.ModifiedOn < DATEADD(month, 1, @s_month_start))`);
+          foundDateRange = true;
+        } else if (/^\d{4}$/.test(datePart)) {
+          requestParams.input('s_year_start', sql.DateTime, datePart + '-01-01');
+          globSearch.push(`(DD.ModifiedOn >= @s_year_start AND DD.ModifiedOn < DATEADD(year, 1, @s_year_start))`);
+          foundDateRange = true;
+        }
+
+        if (!foundDateRange) {
+          globSearch.push(`CONVERT(VARCHAR(23), DD.ModifiedOn, 121) LIKE N'%${escapedSearch}%'`);
+        }
+      }
+
       whereConditions.push(`(${globSearch.join(' OR ')})`);
     }
 
@@ -570,7 +599,31 @@ app.get('/api/devicedata', async (req, res) => {
         if (colName === 'Id' || colName === 'OldValueReal' || colName === 'NewValueReal') {
           whereConditions.push(parseNumericFilter('DD.' + colName, val));
         } else if (colName === 'ModifiedOn') {
-          whereConditions.push(`CONVERT(VARCHAR(23), DD.${colName}, 121) LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
+          const trimmedVal = val.trim();
+          let datePart = trimmedVal;
+          let handled = false;
+
+          // Podpora českého formátu DD.MM.YYYY
+          const czMatch = trimmedVal.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+          if (czMatch) datePart = `${czMatch[3]}-${czMatch[2].padStart(2, '0')}-${czMatch[1].padStart(2, '0')}`;
+
+          if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+            requestParams.input('fc_date_' + i, sql.DateTime, datePart);
+            whereConditions.push(`DD.ModifiedOn >= @fc_date_${i} AND DD.ModifiedOn < DATEADD(day, 1, @fc_date_${i})`);
+            handled = true;
+          } else if (/^\d{4}-\d{2}$/.test(datePart)) {
+            requestParams.input('fc_month_' + i, sql.DateTime, datePart + '-01');
+            whereConditions.push(`DD.ModifiedOn >= @fc_month_${i} AND DD.ModifiedOn < DATEADD(month, 1, @fc_month_${i})`);
+            handled = true;
+          } else if (/^\d{4}$/.test(datePart)) {
+            requestParams.input('fc_year_' + i, sql.DateTime, datePart + '-01-01');
+            whereConditions.push(`DD.ModifiedOn >= @fc_year_${i} AND DD.ModifiedOn < DATEADD(year, 1, @fc_year_${i})`);
+            handled = true;
+          }
+
+          if (!handled) {
+            whereConditions.push(`CONVERT(VARCHAR(23), DD.${colName}, 121) LIKE N'%${escapeSqlString(escapeLike(trimmedVal))}%'`);
+          }
         } else {
           whereConditions.push(`DD.${colName} LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
         }

@@ -4,6 +4,7 @@
 - **Extrémní optimalizace výkonu:**
     - Oprava chyby timeoutu (ETIMEOUT) při filtrování velkých časových rozsahů (např. posledních 7 dní).
     - Implementace instantního počítání záznamů (recordsTotal) pomocí systémových metadat SQL Serveru (`sys.partitions`) – zrychlení z desítek sekund na 0ms u tabulek s 24M+ řádky.
+    - **SARGable vyhledávání v datech:** Vyhledávání konkrétních dní (YYYY-MM-DD), měsíců nebo roků nyní využívá indexované rozsahy namísto pomalých textových konverzí. Zrychlení z 12s na <100ms.
     - Nový systém "pre-fetch" ID pro filtry metadat (zařízení, vlastnosti, lokality atd.), který eliminuje drahé JOINy nad miliony záznamů.
     - Přidány optimalizované indexy a provedena aktualizace statistik v DB pro správné fungování SARGable dotazů.
     - Použití `WITH (NOLOCK)` u náročných čtecích dotazů pro zabránění blokování.
