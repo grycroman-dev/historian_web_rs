@@ -1,5 +1,19 @@
 # Changelog
  
+## 2.1.11 - 2026-02-26
+- **Grafy – oprava osy X:**
+    - Osa X nyní zobrazuje skutečný čas (časová osa) místo pořadového čísla záznamu.
+    - Přidán vlastní date adapter pro Chart.js (`chartjs-adapter-simple.js`) bez externích závislostí.
+    - Oprava smyček/přestřelování v liniovém grafu (Bézierova křivka nahrazena rovnými úsečkami).
+    - Oprava sloupcového grafu s časovou osou (dynamický výpočet šířky sloupců).
+    - Rozložení duplicitních timestampů – body se stejným časem se na ose X nepřekrývají.
+    - Konzistentní řazení dat v grafu (`ORDER BY ModifiedOn ASC, Id ASC`).
+- **Grafy – nové funkce:**
+    - Přidán přepínač osy X: **Čas** (proporcionální časová osa) / **Pořadí** (rovnoměrné rozložení bodů).
+    - Volba režimu osy X se ukládá do localStorage.
+    - Adaptivní formátování ticků na časové ose podle rozsahu dat (ms, sekundy, minuty, hodiny, dny).
+    - Tooltip zobrazuje čas s milisekundami. V režimu Pořadí navíc ukazuje pořadové číslo a čas záznamu.
+
  ## 2.1.10 - 2026-02-25
 - **Extrémní optimalizace výkonu:**
     - Oprava chyby timeoutu (ETIMEOUT) při filtrování velkých časových rozsahů (např. posledních 7 dní).

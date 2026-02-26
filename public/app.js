@@ -1356,32 +1356,165 @@ $(document).ready(function () {
     const fillColor = hexToRgba(baseColor, isDark ? 0.15 : 0.12);
     const barColor = hexToRgba(baseColor, isDark ? 0.75 : 0.7);
 
-    const labels = data.points.map(p => {
-      const d = new Date(p.x);
-      return d.toISOString().replace('T', ' ').substring(0, 19);
-    });
-    const values = data.points.map(p => p.y);
+    // Režim osy X: 'time' (čas) nebo 'index' (pořadí)
+    const xAxisMode = $('#chartXAxis').val() || 'time';
+    const useTime = xAxisMode === 'time';
 
-    // Scatter: indexy na X-ose (time adapter není k dispozici)
-    const isScatter = chartType === 'scatter';
-    const scatterData = data.points.map((p, i) => ({ x: i, y: p.y }));
+    // Pomocná funkce pro formátování data s milisekundami
+    function formatTimestamp(ts) {
+      const d = new Date(ts);
+      return d.toISOString().replace('T', ' ').substring(0, 23);
+    }
 
-    const datasets = [{
-      label: `${data.property} – Nová hodnota`,
-      data: isScatter ? scatterData : values,
-      borderColor: lineColor,
-      backgroundColor: chartType === 'line' ? fillColor : barColor,
-      pointBackgroundColor: lineColor,
-      pointRadius: data.points.length > 500 ? 1 : 3,
-      pointHoverRadius: 5,
-      borderWidth: 2,
-      fill: chartType === 'line',
-      tension: 0.3
-    }];
+    let chartDatasets, chartLabels, xScaleConfig;
 
-    chartInstance = new Chart(canvas, {
+    if (useTime) {
+      // === REŽIM ČAS ===
+      // Rozložení duplicitních timestampů – pokud mají body stejný čas,
+      // přidáme drobný offset (1ms), aby se nepřekrývaly na ose X
+      const timeData = [];
+      let lastTs = -Infinity;
+      let dupOffset = 0;
+      for (let i = 0; i < data.points.length; i++) {
+        let ts = new Date(data.points[i].x).getTime();
+        if (ts === lastTs || ts <= lastTs + dupOffset) {
+          dupOffset++;
+        } else {
+          dupOffset = 0;
+          lastTs = ts;
+        }
+        timeData.push({ x: ts + dupOffset, y: data.points[i].y });
+      }
+
+      // Pro bar chart s time osou – spočítej šířku sloupce v ms
+      let barThickness;
+      if (chartType === 'bar' && timeData.length > 1) {
+        const minT = timeData[0].x;
+        const maxT = timeData[timeData.length - 1].x;
+        const rangeMs = maxT - minT;
+        // Šířka sloupce = celkový rozsah / počet bodů * 0.8 (koeficient)
+        const rawWidth = (rangeMs / timeData.length) * 0.8;
+        // Převeď ms na pixely – canvas width / rozsah * rawWidth
+        // Chart.js barThickness je v pixelech, takže odhadneme
+        const canvasWidth = canvas.clientWidth || 800;
+        barThickness = Math.max(2, Math.min(50, (canvasWidth / timeData.length) * 0.7));
+      }
+
+      chartDatasets = [{
+        label: `${data.property} – Nová hodnota`,
+        data: timeData,
+        borderColor: lineColor,
+        backgroundColor: chartType === 'line' ? fillColor : barColor,
+        pointBackgroundColor: lineColor,
+        pointRadius: data.points.length > 500 ? 1 : 3,
+        pointHoverRadius: 5,
+        borderWidth: 2,
+        fill: chartType === 'line',
+        tension: 0,
+        barThickness: barThickness
+      }];
+
+      // Spočítáme rozsah dat pro adaptivní formátování ticků
+      const minTime = timeData[0].x;
+      const maxTime = timeData[timeData.length - 1].x;
+      const rangeMs = maxTime - minTime;
+      const rangeHours = rangeMs / 3600000;
+
+      xScaleConfig = {
+        type: 'time',
+        time: {
+          tooltipFormat: 'dd.MM.yyyy HH:mm:ss.SSS',
+          displayFormats: {
+            millisecond: 'HH:mm:ss.SSS',
+            second: 'HH:mm:ss',
+            minute: 'HH:mm',
+            hour: 'dd.MM. HH:mm',
+            day: 'dd.MM.yyyy',
+            week: 'dd.MM.yyyy',
+            month: 'MM/yyyy',
+            quarter: 'MM/yyyy',
+            year: 'yyyy'
+          }
+        },
+        ticks: {
+          source: 'data',
+          autoSkip: true,
+          maxTicksLimit: 15,
+          maxRotation: 60,
+          color: textColor,
+          callback: function (value, index, ticks) {
+            // Adaptivní formát podle rozsahu dat
+            const d = new Date(value);
+            const dd = String(d.getDate()).padStart(2, '0');
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const hh = String(d.getHours()).padStart(2, '0');
+            const mi = String(d.getMinutes()).padStart(2, '0');
+            const ss = String(d.getSeconds()).padStart(2, '0');
+            const ms = String(d.getMilliseconds()).padStart(3, '0');
+
+            if (rangeHours < 0.017) {
+              // Pod 1 minutu – zobrazit sekundy.ms
+              return `${hh}:${mi}:${ss}.${ms}`;
+            } else if (rangeHours < 1) {
+              // Pod 1 hodinu – zobrazit minuty:sekundy
+              return `${hh}:${mi}:${ss}`;
+            } else if (rangeHours < 24) {
+              // Pod 1 den – hodiny:minuty
+              return `${hh}:${mi}`;
+            } else if (rangeHours < 168) {
+              // Pod 1 týden – den.měsíc hodiny:minuty
+              return `${dd}.${mm}. ${hh}:${mi}`;
+            } else {
+              // Víc – den.měsíc.rok
+              return `${dd}.${mm}.${d.getFullYear()}`;
+            }
+          }
+        },
+        grid: { color: gridColor },
+        offset: chartType === 'bar'
+      };
+    } else {
+      // === REŽIM POŘADÍ (index) ===
+      const labels = data.points.map((p, i) => i + 1);
+      const values = data.points.map(p => p.y);
+
+      chartDatasets = [{
+        label: `${data.property} – Nová hodnota`,
+        data: chartType === 'scatter'
+          ? data.points.map((p, i) => ({ x: i + 1, y: p.y }))
+          : values,
+        borderColor: lineColor,
+        backgroundColor: chartType === 'line' ? fillColor : barColor,
+        pointBackgroundColor: lineColor,
+        pointRadius: data.points.length > 500 ? 1 : 3,
+        pointHoverRadius: 5,
+        borderWidth: 2,
+        fill: chartType === 'line',
+        tension: 0
+      }];
+
+      chartLabels = labels;
+
+      xScaleConfig = {
+        ticks: {
+          color: textColor,
+          maxTicksLimit: 12,
+          maxRotation: 0
+        },
+        grid: { color: gridColor },
+        title: {
+          display: true,
+          text: 'Pořadí záznamu',
+          color: textColor
+        }
+      };
+    }
+
+    const chartConfig = {
       type: chartType === 'scatter' ? 'scatter' : chartType,
-      data: isScatter ? { datasets } : { labels, datasets },
+      data: useTime
+        ? { datasets: chartDatasets }
+        : (chartType === 'scatter' ? { datasets: chartDatasets } : { labels: chartLabels, datasets: chartDatasets }),
       options: {
         responsive: true,
         maintainAspectRatio: false,
@@ -1391,40 +1524,37 @@ $(document).ready(function () {
           tooltip: {
             callbacks: {
               title: ctx => {
-                if (isScatter && ctx[0]) {
-                  const idx = ctx[0].parsed.x;
-                  if (data.points[idx]) {
-                    return new Date(data.points[idx].x).toISOString().replace('T', ' ').substring(0, 19);
+                if (ctx[0]) {
+                  if (useTime) {
+                    // V režimu čas – zobrazit čas s milisekundami
+                    return formatTimestamp(ctx[0].parsed.x);
+                  } else {
+                    // V režimu pořadí – zobrazit pořadí + čas záznamu
+                    const idx = (chartType === 'scatter' ? ctx[0].parsed.x : ctx[0].dataIndex) || 0;
+                    const realIdx = Math.round(idx) - (chartType === 'scatter' ? 1 : 0);
+                    if (data.points[realIdx]) {
+                      return `#${realIdx + 1} – ${formatTimestamp(data.points[realIdx].x)}`;
+                    }
+                    return `#${idx}`;
                   }
                 }
-                return ctx[0]?.label || '';
+                return '';
               },
               label: ctx => ` ${ctx.parsed.y}`
             }
           }
         },
         scales: {
-          x: {
-            ticks: {
-              color: textColor,
-              maxTicksLimit: isScatter ? 8 : 12,
-              maxRotation: 45,
-              callback: isScatter
-                ? (val, idx) => {
-                  const pt = data.points[val];
-                  return pt ? new Date(pt.x).toISOString().substring(11, 16) : '';
-                }
-                : undefined
-            },
-            grid: { color: gridColor }
-          },
+          x: xScaleConfig,
           y: {
             ticks: { color: textColor },
             grid: { color: gridColor }
           }
         }
       }
-    });
+    };
+
+    chartInstance = new Chart(canvas, chartConfig);
   }
 
   // Kliknutí na tlačítko Graf
@@ -1506,6 +1636,17 @@ $(document).ready(function () {
   $('#chartColor').on('change', function () {
     const color = $(this).val();
     localStorage.setItem('chartColor', color);
+    if (chartData && chartData.points && chartData.points.length > 0) {
+      renderChart(chartData, $('#chartType').val());
+    }
+  });
+
+  // Přepnutí osy X (Čas / Pořadí)
+  const savedXAxis = localStorage.getItem('chartXAxis') || 'time';
+  $('#chartXAxis').val(savedXAxis);
+
+  $('#chartXAxis').on('change', function () {
+    localStorage.setItem('chartXAxis', $(this).val());
     if (chartData && chartData.points && chartData.points.length > 0) {
       renderChart(chartData, $('#chartType').val());
     }

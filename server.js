@@ -329,7 +329,7 @@ app.get('/api/chart-data', async (req, res) => {
       SELECT TOP 5000 ModifiedOn, NewValueReal
       FROM dbo.DeviceDataView
       ${whereSQL}
-      ORDER BY ModifiedOn ASC
+      ORDER BY ModifiedOn ASC, Id ASC
     `;
 
     const result = await request.query(query);

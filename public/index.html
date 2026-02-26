@@ -341,6 +341,13 @@
           <option value="orange">Oranžová</option>
           <option value="cyan">Tyrkysová</option>
         </select>
+
+        <label for="chartXAxis" style="font-size:0.85rem; color:var(--text-muted); margin-left: 1rem;"><i
+            class="fas fa-ruler-horizontal"></i> Osa X:</label>
+        <select id="chartXAxis" class="form-select" style="width:auto; min-width:120px;">
+          <option value="time" selected>Čas</option>
+          <option value="index">Pořadí</option>
+        </select>
         <span id="chartPointCount" class="status-item" style="font-size:0.8rem;"></span>
         <div style="margin-left:auto; display:flex; gap:0.5rem;">
           <button id="exportChartPNG" class="btn-icon" title="Uložit jako PNG">
@@ -368,6 +375,7 @@
   <script src="vendors/mark/mark.min.js"></script>
   <script src="vendors/mark/jquery.mark.min.js"></script>
   <script src="vendors/chartjs/chart.min.js"></script>
+  <script src="vendors/chartjs/chartjs-adapter-simple.js"></script>
   <script src="app.js"></script>
 </body>
 
