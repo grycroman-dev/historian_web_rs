@@ -1443,14 +1443,14 @@ $(document).ready(function () {
           maxRotation: 60,
           color: textColor,
           callback: function (value, index, ticks) {
-            // Adaptivní formát podle rozsahu dat
+            // Adaptivní formát podle rozsahu dat – vše v UTC
             const d = new Date(value);
-            const dd = String(d.getDate()).padStart(2, '0');
-            const mm = String(d.getMonth() + 1).padStart(2, '0');
-            const hh = String(d.getHours()).padStart(2, '0');
-            const mi = String(d.getMinutes()).padStart(2, '0');
-            const ss = String(d.getSeconds()).padStart(2, '0');
-            const ms = String(d.getMilliseconds()).padStart(3, '0');
+            const dd = String(d.getUTCDate()).padStart(2, '0');
+            const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+            const hh = String(d.getUTCHours()).padStart(2, '0');
+            const mi = String(d.getUTCMinutes()).padStart(2, '0');
+            const ss = String(d.getUTCSeconds()).padStart(2, '0');
+            const ms = String(d.getUTCMilliseconds()).padStart(3, '0');
 
             if (rangeHours < 0.017) {
               // Pod 1 minutu – zobrazit sekundy.ms
@@ -1466,7 +1466,7 @@ $(document).ready(function () {
               return `${dd}.${mm}. ${hh}:${mi}`;
             } else {
               // Víc – den.měsíc.rok
-              return `${dd}.${mm}.${d.getFullYear()}`;
+              return `${dd}.${mm}.${d.getUTCFullYear()}`;
             }
           }
         },
