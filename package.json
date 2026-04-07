@@ -1,6 +1,6 @@
 {
   "name": "historian_web",
-  "version": "2.1.11",
+  "version": "2.1.12",
   "description": "",
   "main": "server.js",
   "scripts": {

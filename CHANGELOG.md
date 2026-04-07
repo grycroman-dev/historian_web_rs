@@ -1,5 +1,15 @@
 # Changelog
  
+## 2.1.12 - 2026-04-07
+- **Grafy – vylepšení exportu PNG:**
+    - Přidána volba **pozadí exportovaného PNG** (průhledné / bílé / černé / vlastní barva).
+    - Přidána volba **velikosti exportovaného PNG** (Originál, Full HD, 2K, 4K, HD, Malý, nebo vlastní rozlišení).
+    - Při výběru vlastní barvy se zobrazí nativní color picker.
+    - Při výběru vlastní velikosti se zobrazí pole pro zadání šířky × výšky v pixelech.
+    - Všechna nastavení exportu se ukládají do `localStorage` a přetrvávají mezi relacemi.
+    - Export nyní vytvoří offscreen canvas v požadované velikosti s vybraným pozadím a překreslí graf v plném rozlišení.
+    - Nový druhý řádek toolbaru v modálu grafu pro přehledné umístění nastavení exportu.
+
 ## 2.1.11 - 2026-02-26
 - **Grafy – oprava osy X:**
     - Osa X nyní zobrazuje skutečný čas (časová osa) místo pořadového čísla záznamu.

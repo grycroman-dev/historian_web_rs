@@ -1138,6 +1138,13 @@ footer {
   flex-shrink: 0;
 }
 
+.chart-toolbar.chart-toolbar-row2 {
+  border-top: none;
+  border-bottom: 1px solid var(--border-color);
+  margin-top: -0.75rem;
+  padding-top: 0.5rem;
+}
+
 .chart-toolbar .form-select {
   padding: 0.3rem 0.6rem;
   font-size: 0.875rem;

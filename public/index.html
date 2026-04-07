@@ -349,6 +349,38 @@
           <option value="index">Pořadí</option>
         </select>
         <span id="chartPointCount" class="status-item" style="font-size:0.8rem;"></span>
+      </div>
+      <div class="chart-toolbar chart-toolbar-row2">
+        <label for="chartPngBg" style="font-size:0.85rem; color:var(--text-muted);">
+          <i class="fas fa-fill-drip"></i> Pozadí PNG:</label>
+        <select id="chartPngBg" class="form-select" style="width:auto; min-width:140px;">
+          <option value="transparent">Průhledné</option>
+          <option value="#ffffff">Bílé</option>
+          <option value="#000000">Černé</option>
+          <option value="custom">Vlastní…</option>
+        </select>
+        <input type="color" id="chartPngBgCustomColor" value="#ffffff"
+          style="width:32px; height:28px; padding:0; border:1px solid var(--border-color); border-radius:4px; cursor:pointer; display:none;"
+          title="Vlastní barva pozadí">
+
+        <label for="chartPngSize" style="font-size:0.85rem; color:var(--text-muted); margin-left: 1rem;">
+          <i class="fas fa-expand-arrows-alt"></i> Velikost PNG:</label>
+        <select id="chartPngSize" class="form-select" style="width:auto; min-width:160px;">
+          <option value="original">Originál (z canvasu)</option>
+          <option value="1920x1080">Full HD (1920×1080)</option>
+          <option value="2560x1440">2K (2560×1440)</option>
+          <option value="3840x2160">4K (3840×2160)</option>
+          <option value="1280x720">HD (1280×720)</option>
+          <option value="800x600">Malý (800×600)</option>
+          <option value="custom">Vlastní…</option>
+        </select>
+        <div id="chartPngSizeCustom" style="display:none; align-items:center; gap:4px;">
+          <input type="number" id="chartPngWidth" class="form-input" style="width:70px;" min="100" max="7680" value="1920" placeholder="Šířka">
+          <span style="color:var(--text-muted);">×</span>
+          <input type="number" id="chartPngHeight" class="form-input" style="width:70px;" min="100" max="4320" value="1080" placeholder="Výška">
+          <span style="font-size:0.75rem; color:var(--text-muted);">px</span>
+        </div>
+
         <div style="margin-left:auto; display:flex; gap:0.5rem;">
           <button id="exportChartPNG" class="btn-icon" title="Uložit jako PNG">
             <i class="fas fa-image"></i> PNG

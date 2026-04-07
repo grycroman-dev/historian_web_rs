@@ -1652,6 +1652,64 @@ $(document).ready(function () {
     }
   });
 
+  // === PNG Export Settings: Pozadí ===
+  const savedPngBg = localStorage.getItem('chartPngBg') || 'transparent';
+  const savedPngBgCustom = localStorage.getItem('chartPngBgCustomColor') || '#ffffff';
+  // Pokud je uložená vlastní barva, nastavíme dropdown na 'custom'
+  if (savedPngBg === 'custom' || (savedPngBg !== 'transparent' && savedPngBg !== '#ffffff' && savedPngBg !== '#000000')) {
+    // Vlastní barva
+    $('#chartPngBg').val('custom');
+    $('#chartPngBgCustomColor').val(savedPngBg === 'custom' ? savedPngBgCustom : savedPngBg).show();
+  } else {
+    $('#chartPngBg').val(savedPngBg);
+  }
+
+  $('#chartPngBg').on('change', function () {
+    const val = $(this).val();
+    if (val === 'custom') {
+      $('#chartPngBgCustomColor').show();
+      localStorage.setItem('chartPngBg', 'custom');
+    } else {
+      $('#chartPngBgCustomColor').hide();
+      localStorage.setItem('chartPngBg', val);
+    }
+  });
+
+  $('#chartPngBgCustomColor').on('change input', function () {
+    localStorage.setItem('chartPngBgCustomColor', $(this).val());
+  });
+
+  // === PNG Export Settings: Velikost ===
+  const savedPngSize = localStorage.getItem('chartPngSize') || 'original';
+  const savedPngW = localStorage.getItem('chartPngWidth') || '1920';
+  const savedPngH = localStorage.getItem('chartPngHeight') || '1080';
+
+  if (savedPngSize === 'custom') {
+    $('#chartPngSize').val('custom');
+    $('#chartPngSizeCustom').css('display', 'flex');
+    $('#chartPngWidth').val(savedPngW);
+    $('#chartPngHeight').val(savedPngH);
+  } else {
+    $('#chartPngSize').val(savedPngSize);
+  }
+
+  $('#chartPngSize').on('change', function () {
+    const val = $(this).val();
+    localStorage.setItem('chartPngSize', val);
+    if (val === 'custom') {
+      $('#chartPngSizeCustom').css('display', 'flex');
+    } else {
+      $('#chartPngSizeCustom').hide();
+    }
+  });
+
+  $('#chartPngWidth').on('change', function () {
+    localStorage.setItem('chartPngWidth', $(this).val());
+  });
+  $('#chartPngHeight').on('change', function () {
+    localStorage.setItem('chartPngHeight', $(this).val());
+  });
+
   // Export Excel
   $('#exportChartExcel').on('click', function () {
     if (!chartData) return;
@@ -1684,15 +1742,81 @@ $(document).ready(function () {
     window.location.href = url;
   });
 
-  // Export PNG
+  // Export PNG (s pozadím a volitelnou velikostí)
   $('#exportChartPNG').on('click', function () {
-    const canvas = document.getElementById('chartCanvas');
-    if (!canvas) return;
-    const link = document.createElement('a');
+    if (!chartInstance) return;
     const device = getSelectedValues('#deviceList')[0] || 'device';
     const property = getSelectedValues('#propertyList')[0] || 'property';
+
+    // Zjisti požadovanou velikost
+    const sizeVal = $('#chartPngSize').val() || 'original';
+    let exportW, exportH;
+    if (sizeVal === 'original') {
+      const srcCanvas = document.getElementById('chartCanvas');
+      exportW = srcCanvas.width;
+      exportH = srcCanvas.height;
+    } else if (sizeVal === 'custom') {
+      exportW = parseInt($('#chartPngWidth').val()) || 1920;
+      exportH = parseInt($('#chartPngHeight').val()) || 1080;
+    } else {
+      const parts = sizeVal.split('x');
+      exportW = parseInt(parts[0]) || 1920;
+      exportH = parseInt(parts[1]) || 1080;
+    }
+
+    // Zjisti barvu pozadí
+    const bgVal = $('#chartPngBg').val();
+    let bgColor = null; // null = průhledné
+    if (bgVal === 'custom') {
+      bgColor = $('#chartPngBgCustomColor').val() || '#ffffff';
+    } else if (bgVal && bgVal !== 'transparent') {
+      bgColor = bgVal;
+    }
+
+    // Vytvoř offscreen canvas v požadované velikosti
+    const offscreen = document.createElement('canvas');
+    offscreen.width = exportW;
+    offscreen.height = exportH;
+    const ctx = offscreen.getContext('2d');
+
+    // Vyplň pozadí
+    if (bgColor) {
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(0, 0, exportW, exportH);
+    }
+
+    // Překresli graf do nového canvasu v požadované velikosti
+    // Použijeme dočasný Chart.js instance
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = exportW;
+    tempCanvas.height = exportH;
+    const tempCtx = tempCanvas.getContext('2d');
+
+    // Klonuj konfiguraci aktuálního grafu
+    const origConfig = chartInstance.config;
+    const tempChart = new Chart(tempCtx, {
+      type: origConfig.type,
+      data: origConfig.data,
+      options: {
+        ...origConfig.options,
+        responsive: false,
+        animation: { duration: 0 },
+        devicePixelRatio: 1
+      },
+      plugins: origConfig.plugins
+    });
+
+    // Počkáme jedno renderování
+    tempChart.update('none');
+
+    // Složíme: pozadí + graf
+    ctx.drawImage(tempCanvas, 0, 0);
+    tempChart.destroy();
+
+    // Stáhneme
+    const link = document.createElement('a');
     link.download = `graf_${device}_${property}_${new Date().toISOString().substring(0, 10)}.png`;
-    link.href = canvas.toDataURL('image/png');
+    link.href = offscreen.toDataURL('image/png');
     link.click();
   });
 
