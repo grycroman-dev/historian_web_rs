@@ -588,6 +588,29 @@ table.dataTable tbody tr:hover {
   background-color: var(--primary-light) !important;
 }
 
+/* Zebra striping fix - apply to whole row and override DataTables column highlighting */
+table.dataTable.display tbody tr.odd,
+table.dataTable.stripe tbody tr.odd {
+  background-color: rgba(0, 0, 0, 0.015) !important;
+}
+
+table.dataTable.display tbody tr.odd > .sorting_1,
+table.dataTable.display tbody tr.odd > .sorting_2,
+table.dataTable.display tbody tr.odd > .sorting_3 {
+  background-color: rgba(0, 0, 0, 0.03) !important;
+}
+
+body.dark-mode table.dataTable.display tbody tr.odd,
+body.dark-mode table.dataTable.stripe tbody tr.odd {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+body.dark-mode table.dataTable.display tbody tr.odd > .sorting_1,
+body.dark-mode table.dataTable.display tbody tr.odd > .sorting_2,
+body.dark-mode table.dataTable.display tbody tr.odd > .sorting_3 {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
 /* Filter inputs in thead */
 .filter-input {
   width: 100% !important;

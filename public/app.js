@@ -1814,8 +1814,9 @@ $(document).ready(function () {
     tempChart.destroy();
 
     // Stáhneme
+    const dateStr = new Date().toISOString().substring(0, 10);
     const link = document.createElement('a');
-    link.download = `graf_${device}_${property}_${new Date().toISOString().substring(0, 10)}.png`;
+    link.download = `graf-${device}-${property}-${dateStr}.png`;
     link.href = offscreen.toDataURL('image/png');
     link.click();
   });
@@ -1832,9 +1833,10 @@ $(document).ready(function () {
       csv += `"${device}";"${property}";"${dt}";"${p.y}"\r\n`;
     });
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const dateStr = new Date().toISOString().substring(0, 10);
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `graf_${device}_${property}_${new Date().toISOString().substring(0, 10)}.csv`;
+    link.download = `graf-${device}-${property}-${dateStr}.csv`;
     link.click();
   });
 

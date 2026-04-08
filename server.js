@@ -28,6 +28,41 @@ function escapeLike(str) {
     .replace(/\]/g, '[]]');
 }
 
+// Pomocná funkce pro generování názvu exportovaného souboru
+function getExportFilename(query, ext, defaultPrefix = 'historian') {
+  const devices = query.device || query['device[]'];
+  const properties = query.property || query['property[]'];
+
+  const devList = Array.isArray(devices) ? devices : (devices && devices !== 'undefined' ? [devices] : []);
+  const propList = Array.isArray(properties) ? properties : (properties && properties !== 'undefined' ? [properties] : []);
+
+  let devicePart = '';
+  if (devList.length === 1) {
+    devicePart = devList[0].replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 30);
+  } else if (devList.length > 1) {
+    devicePart = 'vice-zarizeni';
+  }
+
+  let propertyPart = '';
+  if (propList.length === 1) {
+    propertyPart = propList[0].replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 20);
+  } else if (propList.length > 1) {
+    propertyPart = 'vice-vlastnosti';
+  }
+
+  const dateStr = new Date().toISOString().substring(0, 10);
+
+  if (devicePart && propertyPart) {
+    return `${devicePart}-${propertyPart}-${dateStr}.${ext}`;
+  } else if (devicePart) {
+    return `${devicePart}-${dateStr}.${ext}`;
+  } else if (propertyPart) {
+    return `${propertyPart}-${dateStr}.${ext}`;
+  } else {
+    return `${defaultPrefix}-${dateStr}.${ext}`;
+  }
+}
+
 // Funkce pro přidání filtru (single nebo multi)
 function addFilter(requestParams, whereConditions, paramName, dbColumn, values) {
   if (!values || values === 'false' || values === 'undefined') return;
@@ -48,6 +83,47 @@ function addFilter(requestParams, whereConditions, paramName, dbColumn, values) 
     });
     whereConditions.push(`${dbColumn} IN (${paramNames.join(', ')})`);
   }
+}
+
+// Pomocná funkce pro SARGable filtrování data a času (proti timeoutům na velkých datech)
+function addDateSargFilter(requestParams, whereConditions, colName, val, uniqueId) {
+  const trimmedVal = val.trim();
+  if (!trimmedVal) return false;
+
+  let datePart = trimmedVal;
+  // Podpora českého formátu DD.MM.YYYY -> YYYY-MM-DD
+  const czMatch = trimmedVal.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (czMatch) {
+    datePart = `${czMatch[3]}-${czMatch[2].padStart(2, '0')}-${czMatch[1].padStart(2, '0')}`;
+  }
+
+  // SARGable rozsahy pro různé úrovně přesnosti
+  // 1. Full Date (YYYY-MM-DD nebo DD.MM.YYYY)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+    const pName = `ds_${uniqueId}`;
+    requestParams.input(pName, sql.Date, datePart);
+    whereConditions.push(`${colName} >= @${pName} AND ${colName} < DATEADD(day, 1, @${pName})`);
+    return true;
+  }
+  // 2. Month (YYYY-MM)
+  if (/^\d{4}-\d{2}$/.test(datePart)) {
+    const pName = `ms_${uniqueId}`;
+    requestParams.input(pName, sql.Date, datePart + '-01');
+    whereConditions.push(`${colName} >= @${pName} AND ${colName} < DATEADD(month, 1, @${pName})`);
+    return true;
+  }
+  // 3. Year (YYYY)
+  if (/^\d{4}$/.test(datePart)) {
+    const pName = `ys_${uniqueId}`;
+    requestParams.input(pName, sql.Date, datePart + '-01-01');
+    whereConditions.push(`${colName} >= @${pName} AND ${colName} < DATEADD(year, 1, @${pName})`);
+    return true;
+  }
+
+  // Fallback na LIKE (Non-SARGable, ale aspoň zkusíme prefix pokud to dává smysl)
+  const escapedVal = escapeSqlString(escapeLike(trimmedVal));
+  whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapedVal}%'`);
+  return false;
 }
 
 // Pomocná funkce pro parsování číselných filtrů (podporuje >, <, >=, <=, =, 10..20)
@@ -91,8 +167,13 @@ function parseNumericFilter(colName, val) {
     }
   }
 
-  // Přesné číslo
-  if (/^[+-]?\d*(\.\d+)?$/.test(val)) {
+  // Přesné číslo (bez operátoru)
+  if (/^\d+(\.\d+)?$/.test(val)) {
+    if (colName.toLowerCase().includes('id')) {
+      // Pro Id chceme prefixové vyhledávání (238 -> 238, 2380, 2381...)
+      const escapedVal = val.replace(/'/g, "''");
+      return `CAST(${colName} AS NVARCHAR(20)) LIKE N'${escapedVal}%'`;
+    }
     const num = parseFloat(val);
     if (!isNaN(num)) {
       return `(${colName} = ${num})`;
@@ -317,7 +398,7 @@ app.get('/api/chart-data', async (req, res) => {
         if (colName === 'Id' || colName === 'OldValueReal' || colName === 'NewValueReal') {
           whereClauses.push(parseNumericFilter(colName, val));
         } else if (colName === 'ModifiedOn') {
-          whereClauses.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
+          addDateSargFilter(request, whereClauses, colName, val, 'chart_' + i);
         } else {
           whereClauses.push(`${colName} LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
         }
@@ -395,7 +476,7 @@ app.get('/api/chart-data/excel', async (req, res) => {
         if (colName === 'Id' || colName === 'OldValueReal' || colName === 'NewValueReal') {
           whereClauses.push(parseNumericFilter(colName, val));
         } else if (colName === 'ModifiedOn') {
-          whereClauses.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
+          addDateSargFilter(request, whereClauses, colName, val, 'chartex_' + i);
         } else {
           whereClauses.push(`${colName} LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
         }
@@ -446,10 +527,7 @@ app.get('/api/chart-data/excel', async (req, res) => {
     // Uživatel si může graf snadno vytvořit v Excelu z exportovaných dat (Vložit -> Graf).
 
     // Odešli soubor
-    const safeDevice = device.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 30);
-    const safeProperty = property.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 20);
-    const dateStr = new Date().toISOString().substring(0, 10);
-    const filename = `graf_${safeDevice}_${safeProperty}_${dateStr}.xlsx`;
+    const filename = getExportFilename(req.query, 'xlsx', 'graf');
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -599,31 +677,7 @@ app.get('/api/devicedata', async (req, res) => {
         if (colName === 'Id' || colName === 'OldValueReal' || colName === 'NewValueReal') {
           whereConditions.push(parseNumericFilter('DD.' + colName, val));
         } else if (colName === 'ModifiedOn') {
-          const trimmedVal = val.trim();
-          let datePart = trimmedVal;
-          let handled = false;
-
-          // Podpora českého formátu DD.MM.YYYY
-          const czMatch = trimmedVal.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-          if (czMatch) datePart = `${czMatch[3]}-${czMatch[2].padStart(2, '0')}-${czMatch[1].padStart(2, '0')}`;
-
-          if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
-            requestParams.input('fc_date_' + i, sql.DateTime, datePart);
-            whereConditions.push(`DD.ModifiedOn >= @fc_date_${i} AND DD.ModifiedOn < DATEADD(day, 1, @fc_date_${i})`);
-            handled = true;
-          } else if (/^\d{4}-\d{2}$/.test(datePart)) {
-            requestParams.input('fc_month_' + i, sql.DateTime, datePart + '-01');
-            whereConditions.push(`DD.ModifiedOn >= @fc_month_${i} AND DD.ModifiedOn < DATEADD(month, 1, @fc_month_${i})`);
-            handled = true;
-          } else if (/^\d{4}$/.test(datePart)) {
-            requestParams.input('fc_year_' + i, sql.DateTime, datePart + '-01-01');
-            whereConditions.push(`DD.ModifiedOn >= @fc_year_${i} AND DD.ModifiedOn < DATEADD(year, 1, @fc_year_${i})`);
-            handled = true;
-          }
-
-          if (!handled) {
-            whereConditions.push(`CONVERT(VARCHAR(23), DD.${colName}, 121) LIKE N'%${escapeSqlString(escapeLike(trimmedVal))}%'`);
-          }
+          addDateSargFilter(requestParams, whereConditions, 'DD.ModifiedOn', val, 'main_' + i);
         } else {
           whereConditions.push(`DD.${colName} LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
         }
@@ -757,7 +811,7 @@ app.get('/api/stats', async (req, res) => {
         if (colName === 'Id' || colName === 'OldValueReal' || colName === 'NewValueReal') {
           whereConditions.push(parseNumericFilter(colName, val));
         } else if (colName === 'ModifiedOn') {
-          whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
+          addDateSargFilter(requestParams, whereConditions, colName, val, 'stats_' + i);
         } else {
           whereConditions.push(`${colName} LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
         }
@@ -861,7 +915,7 @@ app.get('/api/devicedata/csv', async (req, res) => {
         if (colName === 'Id' || colName === 'OldValueReal' || colName === 'NewValueReal') {
           whereConditions.push(parseNumericFilter(colName, val));
         } else if (colName === 'ModifiedOn') {
-          whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
+          addDateSargFilter(requestParams, whereConditions, colName, val, 'csv_' + i);
         } else {
           whereConditions.push(`${colName} LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
         }
@@ -911,8 +965,7 @@ app.get('/api/devicedata/csv', async (req, res) => {
       }).join(';') + '\n';
     });
 
-    const timestamp = new Date().toISOString().replace(/T/, '_').replace(/:/g, '-').split('.')[0];
-    const filename = `historian_export_${timestamp}.csv`;
+    const filename = getExportFilename(req.query, 'csv');
 
     res.header('Content-Type', 'text/csv; charset=utf-8');
     res.attachment(filename);
@@ -1009,7 +1062,7 @@ app.get('/api/devicedata/xlsx', async (req, res) => {
         if (colName === 'Id' || colName === 'OldValueReal' || colName === 'NewValueReal') {
           whereConditions.push(parseNumericFilter(colName, val));
         } else if (colName === 'ModifiedOn') {
-          whereConditions.push(`CONVERT(VARCHAR(23), ${colName}, 121) LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
+          addDateSargFilter(requestParams, whereConditions, colName, val, 'xlsx_' + i);
         } else {
           whereConditions.push(`${colName} LIKE N'%${escapeSqlString(escapeLike(val))}%'`);
         }
@@ -1072,8 +1125,7 @@ app.get('/api/devicedata/xlsx', async (req, res) => {
       worksheet.addRow(rowData);
     });
 
-    const timestamp = new Date().toISOString().replace(/T/, '_').replace(/:/g, '-').split('.')[0];
-    const filename = `historian_export_${timestamp}.xlsx`;
+    const filename = getExportFilename(req.query, 'xlsx');
 
     res.header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.header('Content-Disposition', `attachment; filename="${filename}"`);

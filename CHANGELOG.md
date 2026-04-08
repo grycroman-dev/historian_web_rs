@@ -1,6 +1,20 @@
 # Changelog
  
-## 2.1.12 - 2026-04-07
+## 2.1.14 - 2026-04-08
+- **Opravy a optimalizace:**
+    - Opraveno zebra pruhování tabulky (střídání barev řádků), které dříve zůstávalo viset jen na prvním sloupci.
+    - Upraveno chování filtru sloupce **Id** – nyní vyhledává jako prefix (např. zadání `238` najde záznamy začínající na `238`).
+    - Zásadní optimalizace filtrování sloupce **Datum** – nasazena metoda **SARGable**, která využívá indexy databáze a brání timeoutům při práci s miliony záznamů (aplikováno na tabulku, exporty i statistiky).
+    - Sjednocena logika pojmenování (použití pomlček) napříč všemi typy exportů (včetně PNG a CSV přímo z modálu grafu).
+
+## 2.1.13 - 2026-04-08
+- **Export dat:**
+    - Vylepšeno pojmenování exportovaných souborů (CSV i XLSX).
+    - Pokud je vybráno právě jedno zařízení a/nebo jedna vlastnost, název souboru je automaticky vygenerován jako `zařízení-vlastnost-datum.ext`.
+    - Jako oddělovač je použita pomlčka (`-`) pro lepší čitelnost v případě, že názvy položek obsahují podtržítka.
+    - Pokud je vybráno více položek, použije se označení `vice-zarizeni` nebo `vice-vlastnosti`.
+    - Sjednocena logika pojmenování s exportem z grafu.
+
 - **Grafy – vylepšení exportu PNG:**
     - Přidána volba **pozadí exportovaného PNG** (průhledné / bílé / černé / vlastní barva).
     - Přidána volba **velikosti exportovaného PNG** (Originál, Full HD, 2K, 4K, HD, Malý, nebo vlastní rozlišení).
