@@ -1,5 +1,12 @@
 # Changelog
  
+## 2.1.15 - 2026-04-08
+- **Nová funkce:** Přidána podpora pro **porovnávání více zařízení v jednom grafu**.
+    - V hlavním panelu lze nyní vybrat libovolný počet zařízení (a jednu vlastnost).
+    - Z důvodu přehlednosti je počet porovnávaných zařízení v grafu omezen na maximálně 3.
+    - Exporty z grafu (Excel, CSV, PNG) nyní plně podporují všechna vybraná zařízení najednou.
+    - Tlačítko Graf v tooltipu nyní napovídá, co je potřeba k jeho aktivaci.
+
 ## 2.1.14 - 2026-04-08
 - **Opravy a optimalizace:**
     - Opraveno zebra pruhování tabulky (střídání barev řádků), které dříve zůstávalo viset jen na prvním sloupci.

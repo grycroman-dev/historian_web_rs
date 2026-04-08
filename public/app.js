@@ -504,6 +504,7 @@ $(document).ready(function () {
         });
 
         refreshTable();
+        updateChartButton();
       }
     }
   });
@@ -595,6 +596,11 @@ $(document).ready(function () {
   function setupMultiselect(btnId, listId, defaultText, iconHtml) {
     const btn = $(btnId);
     const list = $(listId);
+
+    // Při jakékoli změně zaškrtnutí v tomto listu
+    list.on('change', 'input[type="checkbox"]', function () {
+      updateChartButton();
+    });
 
     // Toggle list
     btn.on('click', function (e) {
@@ -1213,6 +1219,7 @@ $(document).ready(function () {
     if (data.frequencies) createCheckboxList('#frequencyList', data.frequencies); // Added
     if (data.types) createCheckboxList('#typeList', data.types);
     if (data.properties) createCheckboxList('#propertyList', data.properties);
+    updateChartButton();
   });
 
   // Načtení verze aplikace
@@ -1325,8 +1332,16 @@ $(document).ready(function () {
   function updateChartButton() {
     const devices = getSelectedValues('#deviceList');
     const properties = getSelectedValues('#propertyList');
-    const active = (devices.length === 1 && properties.length === 1);
+    let active = (devices.length >= 1 && properties.length === 1);
+    let title = 'Zobrazit graf';
+    if (properties.length !== 1) title = 'Vyberte právě jednu vlastnost';
+    else if (devices.length === 0) title = 'Vyberte alespoň jedno zařízení';
+    else if (devices.length > 3) {
+      active = false;
+      title = 'Lze porovnat maximálně 3 zařízení najednou (vybráno ' + devices.length + ')';
+    }
     $('#btnChart').prop('disabled', !active);
+    $('#btnChart').attr('title', title + ' (Alt+G)');
   }
 
   // Napojení na změny multiselectů
@@ -1346,6 +1361,23 @@ $(document).ready(function () {
     const isDark = document.body.classList.contains('dark-mode');
     const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)';
     const textColor = isDark ? '#94a3b8' : '#64748b';
+
+    // 0. Seskupení dat podle zařízení (potřebujeme hned pro zjištění počtu)
+    const groupedByDevice = {};
+    if (data && data.points) {
+      data.points.forEach(p => {
+        if (!groupedByDevice[p.device]) groupedByDevice[p.device] = [];
+        groupedByDevice[p.device].push(p);
+      });
+    }
+    const deviceNames = Object.keys(groupedByDevice);
+
+    // 0.5 Skrýt/zobrazit výběr barvy (má smysl jen pro 1 zařízení)
+    if (deviceNames.length > 1) {
+      $('label[for="chartColor"], #chartColor').hide();
+    } else {
+      $('label[for="chartColor"], #chartColor').show();
+    }
 
     // Vybraná barva
     const colorKey = $('#chartColor').val() || 'blue';
@@ -1368,57 +1400,79 @@ $(document).ready(function () {
 
     let chartDatasets, chartLabels, xScaleConfig;
 
+    // 1. Seskupení dat podle zařízení (používáme již existující z kroku 0)
+    // const groupedByDevice = ...
+    // const deviceNames = ...
+
+    // 2. Barvy pro zařízení
+    const getColors = (idx) => {
+      if (deviceNames.length === 1) {
+        const colorKey = $('#chartColor').val() || 'blue';
+        const pal = chartColors[colorKey] || chartColors.blue;
+        const base = isDark ? pal.dark : pal.light;
+        return {
+          line: base,
+          fill: hexToRgba(base, isDark ? 0.15 : 0.12),
+          bar: hexToRgba(base, isDark ? 0.75 : 0.7)
+        };
+      }
+      const paletteKeys = Object.keys(chartColors);
+      const key = paletteKeys[idx % paletteKeys.length];
+      const pal = chartColors[key];
+      const base = isDark ? pal.dark : pal.light;
+      return {
+        line: base,
+        fill: hexToRgba(base, isDark ? 0.15 : 0.12),
+        bar: hexToRgba(base, isDark ? 0.75 : 0.7)
+      };
+    };
+
     if (useTime) {
       // === REŽIM ČAS ===
-      // Rozložení duplicitních timestampů – pokud mají body stejný čas,
-      // přidáme drobný offset (1ms), aby se nepřekrývaly na ose X
-      const timeData = [];
-      let lastTs = -Infinity;
-      let dupOffset = 0;
-      for (let i = 0; i < data.points.length; i++) {
-        let ts = new Date(data.points[i].x).getTime();
-        if (ts === lastTs || ts <= lastTs + dupOffset) {
-          dupOffset++;
-        } else {
-          dupOffset = 0;
-          lastTs = ts;
+      chartDatasets = deviceNames.map((devName, devIdx) => {
+        const devPoints = groupedByDevice[devName];
+        const timeData = [];
+        let lastTs = -Infinity;
+        let dupOffset = 0;
+
+        for (let i = 0; i < devPoints.length; i++) {
+          let ts = new Date(devPoints[i].x).getTime();
+          if (ts === lastTs || ts <= lastTs + dupOffset) {
+            dupOffset++;
+          } else {
+            dupOffset = 0;
+            lastTs = ts;
+          }
+          timeData.push({ x: ts + dupOffset, y: devPoints[i].y });
         }
-        timeData.push({ x: ts + dupOffset, y: data.points[i].y });
-      }
 
-      // Pro bar chart s time osou – spočítej šířku sloupce v ms
-      let barThickness;
-      if (chartType === 'bar' && timeData.length > 1) {
-        const minT = timeData[0].x;
-        const maxT = timeData[timeData.length - 1].x;
-        const rangeMs = maxT - minT;
-        // Šířka sloupce = celkový rozsah / počet bodů * 0.8 (koeficient)
-        const rawWidth = (rangeMs / timeData.length) * 0.8;
-        // Převeď ms na pixely – canvas width / rozsah * rawWidth
-        // Chart.js barThickness je v pixelech, takže odhadneme
-        const canvasWidth = canvas.clientWidth || 800;
-        barThickness = Math.max(2, Math.min(50, (canvasWidth / timeData.length) * 0.7));
-      }
+        const cols = getColors(devIdx);
+        return {
+          label: deviceNames.length === 1 ? `${data.property} – Nová hodnota` : devName,
+          data: timeData,
+          borderColor: cols.line,
+          backgroundColor: chartType === 'line' ? cols.fill : cols.bar,
+          pointBackgroundColor: cols.line,
+          pointRadius: data.points.length > 500 ? 1 : 3,
+          pointHoverRadius: 5,
+          borderWidth: 2,
+          fill: chartType === 'line',
+          tension: 0,
+          spanGaps: true
+        };
+      });
 
-      chartDatasets = [{
-        label: `${data.property} – Nová hodnota`,
-        data: timeData,
-        borderColor: lineColor,
-        backgroundColor: chartType === 'line' ? fillColor : barColor,
-        pointBackgroundColor: lineColor,
-        pointRadius: data.points.length > 500 ? 1 : 3,
-        pointHoverRadius: 5,
-        borderWidth: 2,
-        fill: chartType === 'line',
-        tension: 0,
-        barThickness: barThickness
-      }];
-
-      // Spočítáme rozsah dat pro adaptivní formátování ticků
-      const minTime = timeData[0].x;
-      const maxTime = timeData[timeData.length - 1].x;
-      const rangeMs = maxTime - minTime;
-      const rangeHours = rangeMs / 3600000;
+      // Spočítáme globální rozsah pro formátování osy (robustně)
+      let minX = Infinity, maxX = -Infinity;
+      data.points.forEach(p => {
+        const ts = new Date(p.x).getTime();
+        if (!isNaN(ts)) {
+          if (ts < minX) minX = ts;
+          if (ts > maxX) maxX = ts;
+        }
+      });
+      if (minX === Infinity) { minX = Date.now(); maxX = Date.now(); }
+      const rangeHours = (maxX - minX) / 3600000;
 
       xScaleConfig = {
         type: 'time',
@@ -1429,84 +1483,61 @@ $(document).ready(function () {
             second: 'HH:mm:ss',
             minute: 'HH:mm',
             hour: 'dd.MM. HH:mm',
-            day: 'dd.MM.yyyy',
-            week: 'dd.MM.yyyy',
-            month: 'MM/yyyy',
-            quarter: 'MM/yyyy',
-            year: 'yyyy'
+            day: 'dd.MM.yyyy'
           }
         },
         ticks: {
           source: 'data',
           autoSkip: true,
-          maxTicksLimit: 15,
-          maxRotation: 60,
+          maxTicksLimit: 12,
           color: textColor,
-          callback: function (value, index, ticks) {
-            // Adaptivní formát podle rozsahu dat – vše v UTC
+          callback: function (value) {
             const d = new Date(value);
-            const dd = String(d.getUTCDate()).padStart(2, '0');
-            const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
-            const hh = String(d.getUTCHours()).padStart(2, '0');
-            const mi = String(d.getUTCMinutes()).padStart(2, '0');
-            const ss = String(d.getUTCSeconds()).padStart(2, '0');
+            if (isNaN(d.getTime())) return value;
+            const pad = n => String(n).padStart(2, '0');
+            const hh = pad(d.getUTCHours()), mi = pad(d.getUTCMinutes()), ss = pad(d.getUTCSeconds());
             const ms = String(d.getUTCMilliseconds()).padStart(3, '0');
+            const dd = pad(d.getUTCDate()), mm = pad(d.getUTCMonth() + 1);
 
-            if (rangeHours < 0.017) {
-              // Pod 1 minutu – zobrazit sekundy.ms
-              return `${hh}:${mi}:${ss}.${ms}`;
-            } else if (rangeHours < 1) {
-              // Pod 1 hodinu – zobrazit minuty:sekundy
-              return `${hh}:${mi}:${ss}`;
-            } else if (rangeHours < 24) {
-              // Pod 1 den – hodiny:minuty
-              return `${hh}:${mi}`;
-            } else if (rangeHours < 168) {
-              // Pod 1 týden – den.měsíc hodiny:minuty
-              return `${dd}.${mm}. ${hh}:${mi}`;
-            } else {
-              // Víc – den.měsíc.rok
-              return `${dd}.${mm}.${d.getUTCFullYear()}`;
-            }
+            if (rangeHours < 0.5) return `${hh}:${mi}:${ss}.${ms}`;
+            if (rangeHours < 24) return `${hh}:${mi}`;
+            if (rangeHours < 168) return `${dd}.${mm}. ${hh}:${mi}`;
+            return `${dd}.${mm}.${d.getUTCFullYear()}`;
           }
         },
-        grid: { color: gridColor },
-        offset: chartType === 'bar'
+        grid: { color: gridColor }
       };
     } else {
       // === REŽIM POŘADÍ (index) ===
-      const labels = data.points.map((p, i) => i + 1);
-      const values = data.points.map(p => p.y);
+      chartDatasets = deviceNames.map((devName, devIdx) => {
+        const devPoints = groupedByDevice[devName];
+        const cols = getColors(devIdx);
+        return {
+          label: deviceNames.length === 1 ? `${data.property} – Nová hodnota` : devName,
+          data: chartType === 'scatter'
+            ? devPoints.map((p, i) => ({ x: i + 1, y: p.y }))
+            : devPoints.map(p => p.y),
+          borderColor: cols.line,
+          backgroundColor: chartType === 'line' ? cols.fill : cols.bar,
+          pointBackgroundColor: cols.line,
+          pointRadius: data.points.length > 500 ? 1 : 3,
+          pointHoverRadius: 5,
+          borderWidth: 2,
+          fill: chartType === 'line',
+          tension: 0
+        };
+      });
 
-      chartDatasets = [{
-        label: `${data.property} – Nová hodnota`,
-        data: chartType === 'scatter'
-          ? data.points.map((p, i) => ({ x: i + 1, y: p.y }))
-          : values,
-        borderColor: lineColor,
-        backgroundColor: chartType === 'line' ? fillColor : barColor,
-        pointBackgroundColor: lineColor,
-        pointRadius: data.points.length > 500 ? 1 : 3,
-        pointHoverRadius: 5,
-        borderWidth: 2,
-        fill: chartType === 'line',
-        tension: 0
-      }];
-
-      chartLabels = labels;
+      let maxLen = 0;
+      deviceNames.forEach(dev => {
+        if (groupedByDevice[dev].length > maxLen) maxLen = groupedByDevice[dev].length;
+      });
+      chartLabels = Array.from({ length: maxLen }, (_, i) => i + 1);
 
       xScaleConfig = {
-        ticks: {
-          color: textColor,
-          maxTicksLimit: 12,
-          maxRotation: 0
-        },
+        ticks: { color: textColor, maxTicksLimit: 12 },
         grid: { color: gridColor },
-        title: {
-          display: true,
-          text: 'Pořadí záznamu',
-          color: textColor
-        }
+        title: { display: true, text: 'Pořadí záznamu', color: textColor }
       };
     }
 
@@ -1559,12 +1590,15 @@ $(document).ready(function () {
 
   // Kliknutí na tlačítko Graf
   $('#btnChart').on('click', function () {
-    const device = getSelectedValues('#deviceList')[0];
+    const devices = getSelectedValues('#deviceList');
     const property = getSelectedValues('#propertyList')[0];
-    if (!device || !property) return;
+    if (devices.length === 0 || !property) return;
 
     // Nastav titulek
-    $('#chartTitle').text(`${device} / ${property}`);
+    const titleText = devices.length === 1
+      ? `${devices[0]} / ${property}`
+      : `Více zařízení (${devices.length}) / ${property}`;
+    $('#chartTitle').text(titleText);
 
     // Otevři modal
     $('#chartModal').addClass('show').hide().fadeIn();
@@ -1575,15 +1609,14 @@ $(document).ready(function () {
     $('#chartPointCount').text('');
 
     // Načti data
-    const params = {
-      device,
-      property,
-      dateFrom: $('#dateFrom').val(),
-      timeFrom: $('#timeFrom').val(),
-      dateTo: $('#dateTo').val(),
-      timeTo: $('#timeTo').val(),
-      dataSource: localStorage.getItem('dataSource') || 'main'
-    };
+    const params = new URLSearchParams();
+    devices.forEach(d => params.append('device', d));
+    params.append('property', property);
+    params.append('dateFrom', $('#dateFrom').val());
+    params.append('timeFrom', $('#timeFrom').val());
+    params.append('dateTo', $('#dateTo').val());
+    params.append('timeTo', $('#timeTo').val());
+    params.append('dataSource', localStorage.getItem('dataSource') || 'main');
 
     const globalSearch = $('#globalSearch').val();
     if (globalSearch) params.searchGlobal = globalSearch;
@@ -1595,12 +1628,12 @@ $(document).ready(function () {
         const id = $(this).attr('id') || '';
         const match = id.match(/filter-col-(\d+)/);
         if (match) {
-          params['col' + match[1]] = val;
+          params.append('col' + match[1], val);
         }
       }
     });
 
-    $.get('/api/chart-data', params)
+    $.get('/api/chart-data?' + params.toString())
       .done(function (data) {
         chartData = data;
         $('#chartLoading').hide();
@@ -1611,7 +1644,9 @@ $(document).ready(function () {
           return;
         }
         $('#chartPointCount').text(`${data.points.length} bodů`);
-        renderChart(data, $('#chartType').val());
+        setTimeout(() => {
+          renderChart(data, $('#chartType').val());
+        }, 100);
       })
       .fail(function () {
         $('#chartLoading').hide();
@@ -1713,19 +1748,21 @@ $(document).ready(function () {
   // Export Excel
   $('#exportChartExcel').on('click', function () {
     if (!chartData) return;
-    const device = getSelectedValues('#deviceList')[0] || '';
-    const property = getSelectedValues('#propertyList')[0] || '';
-    if (!device || !property) return;
+    const devices = chartData.devices || [];
+    const property = chartData.property || '';
+    if (devices.length === 0 || !property) return;
 
-    let url = `/api/chart-data/excel?device=${encodeURIComponent(device)}&property=${encodeURIComponent(property)}`;
-    url += `&dataSource=${localStorage.getItem('dataSource') || 'main'}`;
-    url += `&dateFrom=${$('#dateFrom').val()}`;
-    url += `&timeFrom=${$('#timeFrom').val()}`;
-    url += `&dateTo=${$('#dateTo').val()}`;
-    url += `&timeTo=${$('#timeTo').val()}`;
+    const params = new URLSearchParams();
+    devices.forEach(d => params.append('device', d));
+    params.append('property', property);
+    params.append('dataSource', localStorage.getItem('dataSource') || 'main');
+    params.append('dateFrom', $('#dateFrom').val());
+    params.append('timeFrom', $('#timeFrom').val());
+    params.append('dateTo', $('#dateTo').val());
+    params.append('timeTo', $('#timeTo').val());
 
     const globalSearch = $('#globalSearch').val();
-    if (globalSearch) url += `&searchGlobal=${encodeURIComponent(globalSearch)}`;
+    if (globalSearch) params.append('searchGlobal', globalSearch);
 
     // Přidání všech sloupcových filtrů
     $('.filter-input').each(function () {
@@ -1734,19 +1771,20 @@ $(document).ready(function () {
         const id = $(this).attr('id') || '';
         const match = id.match(/filter-col-(\d+)/);
         if (match) {
-          url += `&col${match[1]}=${encodeURIComponent(val)}`;
+          params.append('col' + match[1], val);
         }
       }
     });
 
-    window.location.href = url;
+    window.location.href = `/api/chart-data/excel?` + params.toString();
   });
 
   // Export PNG (s pozadím a volitelnou velikostí)
   $('#exportChartPNG').on('click', function () {
-    if (!chartInstance) return;
-    const device = getSelectedValues('#deviceList')[0] || 'device';
-    const property = getSelectedValues('#propertyList')[0] || 'property';
+    if (!chartInstance || !chartData) return;
+    const devices = chartData.devices || [];
+    const property = chartData.property || 'property';
+    const deviceLabel = devices.length === 1 ? devices[0] : 'vice-zarizeni';
 
     // Zjisti požadovanou velikost
     const sizeVal = $('#chartPngSize').val() || 'original';
@@ -1816,7 +1854,7 @@ $(document).ready(function () {
     // Stáhneme
     const dateStr = new Date().toISOString().substring(0, 10);
     const link = document.createElement('a');
-    link.download = `graf-${device}-${property}-${dateStr}.png`;
+    link.download = `graf-${deviceLabel}-${property}-${dateStr}.png`;
     link.href = offscreen.toDataURL('image/png');
     link.click();
   });
@@ -1824,19 +1862,20 @@ $(document).ready(function () {
   // Export CSV
   $('#exportChartCSV').on('click', function () {
     if (!chartData || !chartData.points) return;
-    const device = chartData.device || '';
+    const devices = chartData.devices || [];
     const property = chartData.property || '';
+    const deviceLabel = devices.length === 1 ? devices[0] : 'vice-zarizeni';
     let csv = '\uFEFF'; // UTF-8 BOM pro Excel
     csv += `"Zařízení";"Vlastnost";"Čas (UTC)";"Nová hodnota"\r\n`;
     chartData.points.forEach(p => {
       const dt = new Date(p.x).toISOString().replace('T', ' ').substring(0, 19);
-      csv += `"${device}";"${property}";"${dt}";"${p.y}"\r\n`;
+      csv += `"${p.device}";"${property}";"${dt}";"${p.y}"\r\n`;
     });
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const dateStr = new Date().toISOString().substring(0, 10);
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `graf-${device}-${property}-${dateStr}.csv`;
+    link.download = `graf-${deviceLabel}-${property}-${dateStr}.csv`;
     link.click();
   });
 

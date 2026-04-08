@@ -326,26 +326,33 @@ app.get('/api/chart-data', async (req, res) => {
     const dataSource = req.query.dataSource || 'main';
     const pool = await getPool(dataSource);
 
-    const device = req.query.device;
+    const devices = req.query.device || req.query['device[]'];
     const property = req.query.property;
 
-    if (!device || !property) {
+    if (!devices || !property) {
       return res.status(400).json({ error: 'Parametry device a property jsou povinné.' });
     }
 
+    const devList = Array.isArray(devices) ? devices : [devices];
     const request = pool.request();
-    request.input('device', sql.NVarChar, device);
     request.input('property', sql.NVarChar, property);
 
     // Zjistíme ID pro rychlejší vyhledávání v DeviceData bez VIEW
-    const devRes = await request.query('SELECT Id FROM dbo.Device WHERE Name = @device');
-    const deviceId = devRes.recordset.length > 0 ? devRes.recordset[0].Id : -1;
+    const devParams = [];
+    devList.forEach((d, idx) => {
+      const pName = `dev_${idx}`;
+      request.input(pName, sql.NVarChar, d);
+      devParams.push(`@${pName}`);
+    });
+
+    const devRes = await request.query(`SELECT Id FROM dbo.Device WHERE Name IN (${devParams.join(',')})`);
+    const deviceIds = devRes.recordset.map(r => r.Id);
 
     const propRes = await request.query('SELECT Id FROM dbo.DeviceProperty WHERE Name = @property');
     const propertyId = propRes.recordset.length > 0 ? propRes.recordset[0].Id : -1;
 
     let whereClauses = [
-      `DeviceId = ${deviceId}`,
+      `DeviceId IN (${deviceIds.length > 0 ? deviceIds.join(',') : -1})`,
       `DevicePropertyId = ${propertyId}`,
       'NewValueReal IS NOT NULL'
     ];
@@ -407,7 +414,7 @@ app.get('/api/chart-data', async (req, res) => {
 
     const whereSQL = whereClauses.length > 0 ? 'WHERE ' + whereClauses.join(' AND ') : '';
     const query = `
-      SELECT TOP 5000 ModifiedOn, NewValueReal
+      SELECT TOP 5000 Name, ModifiedOn, NewValueReal
       FROM dbo.DeviceDataView
       ${whereSQL}
       ORDER BY ModifiedOn ASC, Id ASC
@@ -415,11 +422,12 @@ app.get('/api/chart-data', async (req, res) => {
 
     const result = await request.query(query);
     const points = result.recordset.map(row => ({
+      device: row.Name,
       x: row.ModifiedOn,
       y: parseFloat(row.NewValueReal)
     }));
 
-    res.json({ device, property, points, count: points.length });
+    res.json({ devices: devList, property, points, count: points.length });
   } catch (err) {
     console.error('Chyba /api/chart-data:', err);
     res.status(500).json({ error: 'Chyba při načítání dat pro graf.' });
@@ -432,18 +440,29 @@ app.get('/api/chart-data/excel', async (req, res) => {
     const dataSource = req.query.dataSource || 'main';
     const pool = await getPool(dataSource);
 
-    const device = req.query.device;
+    const devices = req.query.device || req.query['device[]'];
     const property = req.query.property;
 
-    if (!device || !property) {
+    if (!devices || !property) {
       return res.status(400).json({ error: 'Parametry device a property jsou povinné.' });
     }
 
+    const devList = Array.isArray(devices) ? devices : [devices];
     const request = pool.request();
-    request.input('device', sql.NVarChar, device);
     request.input('property', sql.NVarChar, property);
 
-    let whereClauses = ['Name = @device', 'DeviceProperty = @property', 'NewValueReal IS NOT NULL'];
+    const devParams = [];
+    devList.forEach((d, idx) => {
+      const pName = `dev_${idx}`;
+      request.input(pName, sql.NVarChar, d);
+      devParams.push(`@${pName}`);
+    });
+
+    let whereClauses = [
+      `Name IN (${devParams.join(',')})`,
+      'DeviceProperty = @property',
+      'NewValueReal IS NOT NULL'
+    ];
 
     if (req.query.dateFrom) { request.input('dateFrom', sql.Date, req.query.dateFrom); whereClauses.push('ModifiedOn >= @dateFrom'); }
     if (req.query.dateTo) { request.input('dateTo', sql.Date, req.query.dateTo); whereClauses.push('ModifiedOn < DATEADD(day, 1, @dateTo)'); }
@@ -512,7 +531,7 @@ app.get('/api/chart-data/excel', async (req, res) => {
     result.recordset.forEach(row => {
       const dt = new Date(row.ModifiedOn);
       sheet.addRow({
-        device,
+        device: row.Name,
         property,
         time: dt.toISOString().replace('T', ' ').substring(0, 23) + ' UTC',
         value: parseFloat(row.NewValueReal)

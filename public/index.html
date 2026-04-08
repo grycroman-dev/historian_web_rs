@@ -138,7 +138,7 @@
           </div>
 
           <button id="btnChart" class="btn btn-primary btn-chart"
-            title="Zobrazit graf - aktivní při výběru 1 zařízení + 1 vlastnosti (Alt+G)" disabled>
+            title="Zobrazit graf - aktivní při výběru 1-3 zařízení + 1 vlastnosti (Alt+G)" disabled>
             <i class="fas fa-chart-line"></i> Graf
           </button>
 
@@ -375,9 +375,11 @@
           <option value="custom">Vlastní…</option>
         </select>
         <div id="chartPngSizeCustom" style="display:none; align-items:center; gap:4px;">
-          <input type="number" id="chartPngWidth" class="form-input" style="width:70px;" min="100" max="7680" value="1920" placeholder="Šířka">
+          <input type="number" id="chartPngWidth" class="form-input" style="width:70px;" min="100" max="7680"
+            value="1920" placeholder="Šířka">
           <span style="color:var(--text-muted);">×</span>
-          <input type="number" id="chartPngHeight" class="form-input" style="width:70px;" min="100" max="4320" value="1080" placeholder="Výška">
+          <input type="number" id="chartPngHeight" class="form-input" style="width:70px;" min="100" max="4320"
+            value="1080" placeholder="Výška">
           <span style="font-size:0.75rem; color:var(--text-muted);">px</span>
         </div>
 
